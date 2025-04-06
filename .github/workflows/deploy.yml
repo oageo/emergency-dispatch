@@ -25,6 +25,9 @@ jobs:
     - name: Build project
       run: cargo build --release
 
+    - name: Cargo run 
+      run: cargo run --release
+
     - name: Upload binary
       uses: actions/upload-artifact@v4
       with:
