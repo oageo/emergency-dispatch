@@ -1,0 +1,32 @@
+name: Deploy Rust
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+      - develop
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v2
+
+    - name: Set up Rust
+      uses: dtolnay/rust-toolchain@stable
+      with:
+        components: rustfmt
+
+    - name: Build project
+      run: cargo build --release
+
+    - name: Upload binary
+      uses: actions/upload-artifact@v2
+      with:
+        name: emergency-dispatch
+        path: target/release/emergency-dispatch
