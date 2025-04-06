@@ -45,6 +45,26 @@ pub fn return_011002() -> Result<(), Box<dyn std::error::Error>> {
     println!("011022, 札幌市消防局");
     let body = getsource()?;
     let document = scraper::Html::parse_document(&body);
+    let selector = scraper::Selector::parse("html body.format_free div#tmp_wrapper div#tmp_wrapper2 div#tmp_wrapper3 div#tmp_wrap_main.column_lnavi div#tmp_main div.wrap_col_main div.col_main div#tmp_contents").unwrap();
+    if let Some(element) = document.select(&selector).next() {
+        let text = element.text().collect::<Vec<_>>().join(" ");
+        if let Some(start) = text.find("現在の災害出動") {
+            if let Some(end) = text[start..].find("出動中の災害は以上です") {
+                let disaster_text = &text[start..start + end];
+                let mut result = String::new();
+                for line in disaster_text.split('●').skip(1) {
+                    let parts: Vec<&str> = line.split('・').collect();
+                    if parts.len() > 1 {
+                        let title = parts[0].trim();
+                        let location = parts[1].trim();
+                        result.push_str(&format!("{} {}\n", title, location));
+                    }
+                }
 
+                // 結果を出力
+                println!("{}", result.trim());
+            }
+        }
+    }
     Ok(())
 }
