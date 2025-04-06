@@ -18,3 +18,6 @@ jobs:
 
     - name: Check project
       run: cargo check
+
+    - name: Cargo run debug mode
+      run: cargo run
