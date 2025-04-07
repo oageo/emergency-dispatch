@@ -59,6 +59,9 @@ pub fn generate_rss_feed() -> Result<(), Box<dyn std::error::Error>> {
         })
         .collect::<Vec<_>>();
 
+    // 現在の日時を取得
+    let now = Local::now();
+
     // 各JSONファイルを読み込む
     for file in files {
         let data = fs::read_to_string(&file)?;
@@ -75,12 +78,21 @@ pub fn generate_rss_feed() -> Result<(), Box<dyn std::error::Error>> {
                         disaster["type"].as_str(),
                         disaster["address"].as_str(),
                     ) {
-                        // 現在の日付を取得
-                        let current_date = Local::now().date_naive();
-
-                        // 時刻をISO8601形式に変換
+                        // 時刻をNaiveTimeに変換
                         if let Ok(parsed_time) = NaiveTime::parse_from_str(time_str, "%H:%M") {
-                            let iso8601_time = format!("{}T{}", current_date, parsed_time);
+                            // 現在の日付を基準に日時を生成
+                            let mut disaster_date = now.date_naive();
+                            let disaster_datetime = disaster_date.and_time(parsed_time);
+
+                            // 実行時刻をNaiveDateTimeに変換
+                            let now_naive = now.naive_local();
+
+                            // 実行時刻と比較して10分以上未来の場合、1日前の日付を設定
+                            if disaster_datetime > now_naive + chrono::Duration::minutes(10) {
+                                disaster_date = disaster_date.pred(); // 1日前の日付に変更
+                            }
+
+                            let iso8601_time = format!("{}T{}", disaster_date, parsed_time);
                             all_disasters.push((
                                 iso8601_time,
                                 format!("{}（{}）", disaster_type, source_name), // タイトルに「disaster_type（source.name）」を表示
