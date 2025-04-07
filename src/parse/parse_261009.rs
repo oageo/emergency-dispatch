@@ -55,27 +55,43 @@ pub fn return_261009() -> Result<(), Box<dyn std::error::Error>> {
 
         else {
             for line in text.split("<hr>") {
-                if let Some((_, rest)) = line.split_once("【") {
-                    if let Some((disaster_type, details)) = rest.split_once("】") {
+                // 複数の災害情報が1つのテキスト内に含まれる場合に対応
+                for sub_line in line.split("【").filter(|s| !s.is_empty()) {
+                    if let Some((disaster_type, details)) = sub_line.split_once("】") {
                         if let Some((date_time, location_details)) = details.split_once("頃、") {
-                            if let Some((address, _)) = location_details.split_once("付近") {
-                                // 時間を「日」の後から抽出
-                                let time = date_time
-                                    .split('日') 
-                                    .nth(1) 
-                                    .unwrap_or("")
-                                    .trim() 
-                                    .replace("時", ":")
-                                    .replace("分", "");
-                                let address = format!("京都府京都市{}", address.trim());
-                                let disaster_type = disaster_type.trim();
+                            // 高速道路の場合と通常の住所の場合を分岐
+                            let (address, disaster_type) = if location_details.contains("高速道路") {
+                                // 高速道路の場合
+                                let highway_address = location_details
+                                    .split("の災害に") // 「の災害に」以降を削除
+                                    .next()
+                                    .unwrap_or(location_details)
+                                    .trim();
+                                (highway_address.to_string(), disaster_type.trim().to_string())
+                            } else if let Some((address, _)) = location_details.split_once("付近") {
+                                // 通常の住所の場合
+                                (
+                                    format!("京都府京都市{}", address.trim()),
+                                    disaster_type.trim().to_string(),
+                                )
+                            } else {
+                                continue; // 解析できない場合はスキップ
+                            };
 
-                                disaster_data.push(json!({
-                                    "type": disaster_type,
-                                    "address": address,
-                                    "time": time
-                                }));
-                            }
+                            // 時間を「日」の後から抽出
+                            let time = date_time
+                                .split('日') // 「日」で分割
+                                .nth(1) // 「日」の後の部分を取得
+                                .unwrap_or("")
+                                .trim() // 前後の空白を削除
+                                .replace("時", ":")
+                                .replace("分", "");
+
+                            disaster_data.push(json!({
+                                "type": disaster_type,
+                                "address": address,
+                                "time": time
+                            }));
                         }
                     }
                 }
