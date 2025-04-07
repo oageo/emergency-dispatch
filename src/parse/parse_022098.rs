@@ -40,7 +40,7 @@ pub fn return_022098() -> Result<(), Box<dyn std::error::Error>> {
     println!("022098, つがる市消防本部");
     let body = getsource()?;
     let document = scraper::Html::parse_document(&body);
-    let selector = scraper::Selector::parse("html body center table tbody tr").unwrap();
+    let selector = scraper::Selector::parse("html body center table tbody tr td table tbody tr td table tbody tr").unwrap();
     let mut disaster_data = vec![];
 
     // 各<tr>要素を解析
@@ -54,10 +54,10 @@ pub fn return_022098() -> Result<(), Box<dyn std::error::Error>> {
             disaster_data.clear(); // 配列を空にする
             break; // 処理を終了
         }
-
-        if cells.len() >= 5 {
+        else if cells.len() >= 5 {
             let time = cells[0].replace("/", "-").split_whitespace().nth(1).unwrap_or("").to_string();
             let disaster_type = cells[2].clone();
+            eprintln!("disaster_type: {}", disaster_type);
             let address = format!("青森県つがる市{}", cells[4].replace("　", "").trim());
 
             disaster_data.push(json!({
