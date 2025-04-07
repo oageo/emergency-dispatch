@@ -1,4 +1,5 @@
 use emergency_dispatch::get_all;
+use emergency_dispatch::generate_rss_feed;
 use std::fs;
 
 fn main() {
@@ -10,4 +11,5 @@ fn main() {
         return;
     }
     get_all();
+    generate_rss_feed();
 }
