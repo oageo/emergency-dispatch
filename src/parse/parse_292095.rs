@@ -40,30 +40,34 @@ pub fn return_292095() -> Result<(), Box<dyn std::error::Error>> {
     println!("292095, 生駒市消防本部");
     let body = getsource()?;
     let document = scraper::Html::parse_document(&body);
-    let selector = scraper::Selector::parse("ul li span").unwrap();
+    let selector = scraper::Selector::parse("html body div#WRAPPER div#WRAPPERINNER ul").unwrap();
     let mut disaster_data = vec![];
 
-    // 各<li>要素を解析
-    for element in document.select(&selector) {
-        let text = element.text().collect::<String>().trim().to_string();
-        if text.contains("現在、火災等の災害は発生していません") {
-            break;
-        }
-        else if let Some((date_time, rest)) = text.split_once("頃、生駒市") {
-            if let Some((address, disaster_type)) = rest.split_once("付近で、") {
-                let time = date_time.split_whitespace().nth(1).unwrap_or("").replace("時", ":").replace("分", "");
-                let disaster_type = if disaster_type.trim() == "その他警戒が発生" {
-                    "その他警戒".to_string() // 「その他警戒が発生」の場合は「その他警戒」のみを出力
-                } else {
-                    disaster_type.trim().replace("事案が発生", "") // それ以外は「事案が発生」を省く
-                };
-                let address = format!("奈良県生駒市{}", address.trim());
+    // 最初の<ul>要素のみを取得
+    if let Some(ul_element) = document.select(&selector).next() {
+        let li_selector = scraper::Selector::parse("li span").unwrap();
 
-                disaster_data.push(json!({
-                    "type": disaster_type,
-                    "address": address,
-                    "time": time
-                }));
+        // 各<li>要素を解析
+        for element in ul_element.select(&li_selector) {
+            let text = element.text().collect::<String>().trim().to_string();
+            if text.contains("現在、火災等の災害は発生していません") {
+                break;
+            } else if let Some((date_time, rest)) = text.split_once("頃、生駒市") {
+                if let Some((address, disaster_type)) = rest.split_once("付近で、") {
+                    let time = date_time.split_whitespace().nth(1).unwrap_or("").replace("時", ":").replace("分", "");
+                    let disaster_type = if disaster_type.trim() == "その他警戒が発生" {
+                        "その他警戒".to_string() // 「その他警戒が発生」の場合は「その他警戒」のみを出力
+                    } else {
+                        disaster_type.trim().replace("事案が発生", "") // それ以外は「事案が発生」を省く
+                    };
+                    let address = format!("奈良県生駒市{}", address.trim());
+
+                    disaster_data.push(json!({
+                        "type": disaster_type,
+                        "address": address,
+                        "time": time
+                    }));
+                }
             }
         }
     }
