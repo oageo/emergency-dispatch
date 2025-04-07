@@ -32,6 +32,7 @@ use crate::parse::parse_122033::return_122033;
 use crate::parse::parse_152021::return_152021;
 use crate::parse::parse_261009::return_261009;
 use crate::parse::parse_292095::return_292095;
+use crate::parse::parse_401307::return_401307;
 
 pub fn get_all() -> Result<(), Box<dyn std::error::Error>> {
     return_011002()?; 
@@ -40,6 +41,7 @@ pub fn get_all() -> Result<(), Box<dyn std::error::Error>> {
     return_152021()?;
     return_261009()?;
     return_292095()?;
+    return_401307()?;
     Ok(())
 }
 
