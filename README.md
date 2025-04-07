@@ -14,25 +14,25 @@
 
 各JSONファイルは、UTF-8形式である。
 
-```json
+```yaml
 {
     "disasters": [
         {
-            "address": "例示県例示市なんちゃら1丁目", // 都道府県から始まる住所
-            "time": "01:23", // 出動時刻（ソースとなる機関によって異なる場合がある）
-            "type": "火災" // 出動種別
+            "address": "例示県例示市なんちゃら1丁目", # 都道府県から始まる住所
+            "time": "01:23", # 出動時刻（ソースとなる機関によって異なる場合がある）
+            "type": "火災" # 出動種別
         },
         {
             "address": "例示県例示市大字ほにゃらら234",
             "time": "00:12",
             "type": "航空隊支援"
-        } // このように複数の出動情報が存在する場合がある。何も無い場合は空配列が返される。
+        } # このように複数の出動情報が存在する場合がある。何も無い場合は空配列が返される。
     ],
-    "jisx0402": "999999", // 6桁の地方公共団体コード
+    "jisx0402": "999999", # 6桁の地方公共団体コード
     "source": [
         {
-            "name": "例示市消防本部", // ソースとなる機関名
-            "url": "https://example.com/index.html" //ソースページ
+            "name": "例示市消防本部", # ソースとなる機関名
+            "url": "https://example.com/index.html" # ソースページ
         }
     ]
 }
@@ -55,7 +55,56 @@
     * 生駒市（生駒市消防本部）
 
 ## 全量フィード
-取得した際にフィード（RSS 2.0）を生成するようにしている。`dist/all_feed.xml`へ生成される。日付変換機構が不完全なため、使用する際は1日のずれが発生する場合があるが、留意して使用すること。フィード生成時と比較して10分以上未来の時間を指している場合は前日と扱うようにしている。そのうちちゃんと直す。
+出動情報を取得した際にフィード（RSS 2.0）を生成するようにしている。`dist/all_feed.xml`へ生成される。日付変換機構が不完全なため、使用する際は1日のずれが発生する場合があるが、留意して使用すること。フィード生成時と比較して10分以上未来の時間を指している場合は前日と扱うようにしている。そのうちちゃんと直す。
+
+## 運用・開発用情報
+
+### 開発環境
+開発を行うためにはRust環境を整える必要がある。[Rustは公式サイトよりインストーラをダウンロードする](https://www.rust-lang.org/ja/tools/install)ことが可能である。
+
+Rustの環境が整ったのであれば、適当な場所へとクローンを行い、`cargo run`を行うことによって開発・実行環境が整う。
+
+```bash
+git clone https://github.com/oageo/emergency-dispatch.git
+cd emergency-dispatch
+cargo run
+```
+
+### パーサー
+取得先によって条件が異なるため、`src/parse`以下にある`parse_（6桁の数字）.rs`によってそれぞれパースが行われている。6桁の数字は当該の地方公共団体コードとなっている。
+
+### 定期実行
+Ubuntu環境において以下のような設定をすると定期的に実行できる。環境に合わせて適宜権限等の管理をする必要がある。
+
+/opt/emergency-dispatch/run_edbot.sh
+```
+#!/bin/bash
+export PATH="$HOME/.cargo/bin:$PATH"
+cd /opt/emergency-dispatch
+cargo run
+```
+
+/etc/systemd/system/edbot.service
+```
+[Unit]
+Description=emergency-dispatchを実行
+
+[Service]
+ExecStart=/opt/emergency-dispatch/run_edbot.sh
+```
+
+/etc/systemd/system/edbot.timer
+```
+[Unit]
+Description=15分ごとに実行
+
+[Timer]
+OnCalendar=*:0/15
+Persistent=true
+
+[Install]
+WantedBy=timers.target
+```
 
 ## 作者
 oageo（Osumi Akari）
