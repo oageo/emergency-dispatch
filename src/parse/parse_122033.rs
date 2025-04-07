@@ -9,7 +9,7 @@ use encoding_rs::SHIFT_JIS; // Shift_JISエンコーディング用
 use super::super::ACCESS_UA;
 use crate::to_half_width; // `lib.rs`の関数をインポート
 
-const HOST: &str = "mama.city.ichikawa.chiba.jp.jp";
+const HOST: &str = "mama.city.ichikawa.chiba.jp";
 const ACCEPT: &str = "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8";
 const ACCEPT_LANGUAGE: &str = "ja,en-US;q=0.7,en;q=0.3";
 const CONNECTION: &str = "keep-alive";
