@@ -4,10 +4,10 @@ use serde_json::json;
 use std::fs::File;
 use std::io::Write;
 use encoding_rs::SHIFT_JIS; // Shift_JISエンコーディング用
+use crate::to_half_width; 
 
 // `ACCESS_UA`をlib.rsから参照
 use super::super::ACCESS_UA;
-use crate::to_half_width; // `lib.rs`の関数をインポート
 
 const HOST: &str = "mama.city.ichikawa.chiba.jp";
 const ACCEPT: &str = "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8";
