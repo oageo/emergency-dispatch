@@ -3,6 +3,7 @@ use reqwest::header::{HeaderMap};
 use serde_json::json;
 use std::fs::File;
 use std::io::Write;
+use encoding_rs::SHIFT_JIS; // Shift_JISエンコーディング用
 
 // `ACCESS_UA`をlib.rsから参照
 use super::super::ACCESS_UA;
@@ -30,8 +31,9 @@ fn getsource() -> Result<String, Box<dyn std::error::Error>> {
     let res = client.get(GET_SOURCE)
         .headers(headers)
         .send()?;
-    let body = res.text()?;
-    Ok(body)
+    let body_bytes = res.bytes()?; // バイト列として取得
+    let (body, _, _) = SHIFT_JIS.decode(&body_bytes); // Shift_JISからUTF-8に変換
+    Ok(body.into_owned())
 }
 
 pub fn return_022098() -> Result<(), Box<dyn std::error::Error>> {
@@ -47,6 +49,11 @@ pub fn return_022098() -> Result<(), Box<dyn std::error::Error>> {
             .select(&scraper::Selector::parse("td").unwrap())
             .map(|cell| cell.text().collect::<String>().trim().to_string())
             .collect();
+
+        if cells.iter().any(|cell| cell.contains("現在発生中の事案はありません")) {
+            disaster_data.clear(); // 配列を空にする
+            break; // 処理を終了
+        }
 
         if cells.len() >= 5 {
             let time = cells[0].replace("/", "-").split_whitespace().nth(1).unwrap_or("").to_string();
