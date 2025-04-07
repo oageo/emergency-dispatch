@@ -1,5 +1,4 @@
-use emergency_dispatch::parse::parse_011002::return_011002;
-use emergency_dispatch::parse::parse_osumiakarijp::return_999999;
+use emergency_dispatch::get_all;
 use std::fs;
 
 fn main() {
@@ -10,6 +9,5 @@ fn main() {
         eprintln!("「dist」ディレクトリの作成に失敗しました: {}", e);
         return;
     }
-    return_011002();
-    // return_999999();
+    get_all();
 }
