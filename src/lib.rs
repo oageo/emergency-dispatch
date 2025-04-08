@@ -30,6 +30,7 @@ use crate::parse::parse_011002::return_011002;
 use crate::parse::parse_022098::return_022098;
 use crate::parse::parse_062103::return_062103;
 use crate::parse::parse_122033::return_122033;
+use crate::parse::parse_151009::return_151009;
 use crate::parse::parse_152021::return_152021;
 use crate::parse::parse_261009::return_261009;
 use crate::parse::parse_292095::return_292095;
@@ -40,6 +41,7 @@ pub fn get_all() -> Result<(), Box<dyn std::error::Error>> {
     return_022098()?;
     return_062103()?;
     return_122033()?;
+    return_151009()?;
     return_152021()?;
     return_261009()?;
     return_292095()?;
