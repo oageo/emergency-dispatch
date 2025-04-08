@@ -8,12 +8,12 @@ use encoding_rs::SHIFT_JIS; // Shift_JISエンコーディング用
 // `ACCESS_UA`をlib.rsから参照
 use super::super::ACCESS_UA;
 
-const HOST: &str = "tsugaru-fd.jp";
+const HOST: &str = "tendo-shoubou.jp";
 const ACCEPT: &str = "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8";
 const ACCEPT_LANGUAGE: &str = "ja,en-US;q=0.7,en;q=0.3";
 const CONNECTION: &str = "keep-alive";
 const CONTENT_TYPE: &str = "application/x-www-form-urlencoded";
-const GET_SOURCE: &str = "http://tsugaru-fd.jp/saigai.html";
+const GET_SOURCE: &str = "http://tendo-shoubou.jp/index.html";
 
 fn getsource() -> Result<String, Box<dyn std::error::Error>> {
     let mut headers = HeaderMap::new();
