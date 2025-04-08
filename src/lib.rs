@@ -122,7 +122,7 @@ pub fn generate_rss_feed() -> Result<(), Box<dyn std::error::Error>> {
     rss_feed.push_str(r#"<rss version="2.0"><channel>"#);
     rss_feed.push_str("<title>日本の緊急車両出動フィード（非公式） by oageo</title>");
     rss_feed.push_str("<link>https://github.com/oageo/emergency-dispatch</link>");
-    rss_feed.push_str("<description>全国の緊急車両出動情報を統一されたフォーマットで提供する</description>");
+    rss_feed.push_str(&format!("<description>全国の緊急車両出動情報を統一されたフォーマットで提供する。フィード生成日時: {}</description>", now.to_string()));
 
     for (time, title, address, source_url) in all_disasters {
         rss_feed.push_str("<item>");
