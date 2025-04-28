@@ -6,5 +6,7 @@ pub mod parse_151009;
 pub mod parse_152021;
 pub mod parse_261009;
 pub mod parse_292095;
+pub mod parse_322016;
+pub mod parse_401005;
 pub mod parse_401307;
 pub mod parse_osumiakarijp;
