@@ -28,26 +28,33 @@ pub fn to_half_width(s: &str) -> String {
 
 use crate::parse::parse_011002::return_011002;
 use crate::parse::parse_022098::return_022098;
+use crate::parse::parse_062103::return_062103;
 use crate::parse::parse_122033::return_122033;
+use crate::parse::parse_151009::return_151009;
 use crate::parse::parse_152021::return_152021;
 use crate::parse::parse_261009::return_261009;
 use crate::parse::parse_292095::return_292095;
+use crate::parse::parse_322016::return_322016;
+use crate::parse::parse_401005::return_401005;
+use crate::parse::parse_401307::return_401307;
 
 pub fn get_all() -> Result<(), Box<dyn std::error::Error>> {
     return_011002()?; 
     return_022098()?;
+    return_062103()?;
     return_122033()?;
+    return_151009()?;
     return_152021()?;
     return_261009()?;
     return_292095()?;
+    return_322016()?;
+    return_401005()?;
+    return_401307()?;
     Ok(())
 }
 
-/// RSSフィードを生成する関数
-pub fn generate_rss_feed() -> Result<(), Box<dyn std::error::Error>> {
-    let mut all_disasters = vec![];
-
-    // distディレクトリ内の「6桁の数字.json」ファイルを取得
+// distディレクトリ内の「6桁の数字.json」ファイル名を取得し、Vecへ格納する関数
+pub fn get_all_json() -> Result<Vec<String>, Box<dyn std::error::Error>> {
     let re = Regex::new(r"^\d{6}\.json$")?;
     let files = fs::read_dir("dist")?
         .filter_map(|entry| {
@@ -60,6 +67,31 @@ pub fn generate_rss_feed() -> Result<(), Box<dyn std::error::Error>> {
             }
         })
         .collect::<Vec<_>>();
+    Ok(files)
+}
+
+// 対応している地方公共団体コードの一覧を`list.json`に保存する関数
+pub fn generate_list_json() -> Result<(), Box<dyn std::error::Error>> {
+    let files = get_all_json()?;
+    let mut list = vec![];
+    for file in files {
+        let data = fs::read_to_string(&file)?;
+        let json: Value = serde_json::from_str(&data)?;
+        if let Some(jisx0402) = json["jisx0402"].as_str() {
+            list.push(jisx0402.to_string());
+        }
+    }
+    let list_json_array = serde_json::to_string(&list)?;
+    let mut file = fs::File::create("dist/list.json")?;
+    file.write_all(list_json_array.as_bytes())?;
+    println!("対応している地方公共団体コードの一覧が生成されました: dist/list.json");
+    Ok(())
+}
+
+/// RSSフィードを生成する関数
+pub fn generate_rss_feed() -> Result<(), Box<dyn std::error::Error>> {
+    let mut all_disasters = vec![];
+    let files = get_all_json().expect("RSSフィードの生成中に、JSONファイルの取得に失敗しました");
 
     // 現在の日時を取得
     let now = Local::now();
@@ -118,7 +150,10 @@ pub fn generate_rss_feed() -> Result<(), Box<dyn std::error::Error>> {
     rss_feed.push_str(r#"<rss version="2.0"><channel>"#);
     rss_feed.push_str("<title>日本の緊急車両出動フィード（非公式） by oageo</title>");
     rss_feed.push_str("<link>https://github.com/oageo/emergency-dispatch</link>");
-    rss_feed.push_str("<description>全国の緊急車両出動情報を統一されたフォーマットで提供する</description>");
+    rss_feed.push_str(&format!("<description>全国の緊急車両出動情報を統一されたフォーマットで提供する。フィード生成日時: {}</description>", now.to_string()));
+    rss_feed.push_str(&format!("<lastBuildDate>{}</lastBuildDate>", now.to_rfc2822()));
+    rss_feed.push_str("<generator>emergency-dispatch</generator>");
+    rss_feed.push_str("<language>ja</language>");
 
     for (time, title, address, source_url) in all_disasters {
         rss_feed.push_str("<item>");

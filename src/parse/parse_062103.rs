@@ -8,12 +8,12 @@ use encoding_rs::SHIFT_JIS; // Shift_JISエンコーディング用
 // `ACCESS_UA`をlib.rsから参照
 use super::super::ACCESS_UA;
 
-const HOST: &str = "tsugaru-fd.jp";
+const HOST: &str = "tendo-shoubou.jp";
 const ACCEPT: &str = "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8";
 const ACCEPT_LANGUAGE: &str = "ja,en-US;q=0.7,en;q=0.3";
 const CONNECTION: &str = "keep-alive";
 const CONTENT_TYPE: &str = "application/x-www-form-urlencoded";
-const GET_SOURCE: &str = "http://tsugaru-fd.jp/saigai.html";
+const GET_SOURCE: &str = "http://tendo-shoubou.jp/index.html";
 
 fn getsource() -> Result<String, Box<dyn std::error::Error>> {
     let mut headers = HeaderMap::new();
@@ -36,8 +36,8 @@ fn getsource() -> Result<String, Box<dyn std::error::Error>> {
     Ok(body.into_owned())
 }
 
-pub fn return_022098() -> Result<(), Box<dyn std::error::Error>> {
-    println!("022098, つがる市消防本部");
+pub fn return_062103() -> Result<(), Box<dyn std::error::Error>> {
+    println!("062103, 天童市消防本部");
     let body = getsource()?;
     let document = scraper::Html::parse_document(&body);
     let selector = scraper::Selector::parse("html body center table tbody tr td table tbody tr td table tbody tr").unwrap();
@@ -57,7 +57,7 @@ pub fn return_022098() -> Result<(), Box<dyn std::error::Error>> {
         else if cells.len() >= 5 {
             let time = cells[0].replace("/", "-").split_whitespace().nth(1).unwrap_or("").to_string();
             let disaster_type = cells[2].clone();
-            let address = format!("青森県つがる市{}", cells[4].replace("　", "").trim());
+            let address = format!("山形県天童市{}", cells[4].replace("　", "").trim());
 
             disaster_data.push(json!({
                 "type": disaster_type,
@@ -68,20 +68,20 @@ pub fn return_022098() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     let output = json!({
-        "jisx0402": "022098",
+        "jisx0402": "062103",
         "source": [
             {
                 "url": GET_SOURCE,
-                "name": "つがる市消防本部"
+                "name": "天童市消防本部"
             }
         ],
         "disasters": disaster_data
     });
 
     // JSONファイルに書き出し
-    let mut file = File::create("dist/022098.json")?;
+    let mut file = File::create("dist/062103.json")?;
     file.write_all(output.to_string().as_bytes())?;
     eprintln!("{:?}", output);
-    println!("JSONファイルが出力されました: 022098.json （つがる市消防本部）");
+    println!("JSONファイルが出力されました: 062103.json （天童市消防本部）");
     Ok(())
 }
