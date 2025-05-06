@@ -10,6 +10,6 @@ fn main() {
         eprintln!("「dist」ディレクトリの作成に失敗しました: {}", e);
         return;
     }
-    get_all();
-    generate_rss_feed();
+    get_all().expect("データの取得に失敗しました");
+    generate_rss_feed().expect("RSSフィードの生成に失敗しました");
 }

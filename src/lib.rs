@@ -53,10 +53,7 @@ pub fn get_all() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
-/// RSSフィードを生成する関数
-pub fn generate_rss_feed() -> Result<(), Box<dyn std::error::Error>> {
-    let mut all_disasters = vec![];
-
+pub fn get_all_json() -> Result<Vec<String>, Box<dyn std::error::Error>> {
     // distディレクトリ内の「6桁の数字.json」ファイルを取得
     let re = Regex::new(r"^\d{6}\.json$")?;
     let files = fs::read_dir("dist")?
@@ -70,6 +67,13 @@ pub fn generate_rss_feed() -> Result<(), Box<dyn std::error::Error>> {
             }
         })
         .collect::<Vec<_>>();
+    Ok(files)
+}
+
+/// RSSフィードを生成する関数
+pub fn generate_rss_feed() -> Result<(), Box<dyn std::error::Error>> {
+    let mut all_disasters = vec![];
+    let files = get_all_json().expect("RSSフィードの生成中に、JSONファイルの取得に失敗しました");
 
     // 現在の日時を取得
     let now = Local::now();
