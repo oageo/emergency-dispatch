@@ -84,7 +84,7 @@ pub fn generate_list_json() -> Result<(), Box<dyn std::error::Error>> {
     let list_json_array = serde_json::to_string(&list)?;
     let mut file = fs::File::create("dist/list.json")?;
     file.write_all(list_json_array.as_bytes())?;
-    println!("対応している地方公共団体コードの一覧を生成しました: dist/list.json");
+    println!("対応している地方公共団体コードの一覧が生成されました: dist/list.json");
     Ok(())
 }
 
