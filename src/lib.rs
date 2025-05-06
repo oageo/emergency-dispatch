@@ -81,6 +81,7 @@ pub fn generate_list_json() -> Result<(), Box<dyn std::error::Error>> {
             list.push(jisx0402.to_string());
         }
     }
+    list.sort(); 
     let list_json_array = serde_json::to_string(&list)?;
     let mut file = fs::File::create("dist/list.json")?;
     file.write_all(list_json_array.as_bytes())?;
