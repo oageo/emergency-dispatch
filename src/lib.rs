@@ -53,8 +53,8 @@ pub fn get_all() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
+// distディレクトリ内の「6桁の数字.json」ファイル名を取得し、Vecへ格納する関数
 pub fn get_all_json() -> Result<Vec<String>, Box<dyn std::error::Error>> {
-    // distディレクトリ内の「6桁の数字.json」ファイルを取得
     let re = Regex::new(r"^\d{6}\.json$")?;
     let files = fs::read_dir("dist")?
         .filter_map(|entry| {
@@ -68,6 +68,24 @@ pub fn get_all_json() -> Result<Vec<String>, Box<dyn std::error::Error>> {
         })
         .collect::<Vec<_>>();
     Ok(files)
+}
+
+// 対応している地方公共団体コードの一覧を`list.json`に保存する関数
+pub fn generate_list_json() -> Result<(), Box<dyn std::error::Error>> {
+    let files = get_all_json()?;
+    let mut list = vec![];
+    for file in files {
+        let data = fs::read_to_string(&file)?;
+        let json: Value = serde_json::from_str(&data)?;
+        if let Some(jisx0402) = json["jisx0402"].as_str() {
+            list.push(jisx0402.to_string());
+        }
+    }
+    let list_json_array = serde_json::to_string(&list)?;
+    let mut file = fs::File::create("dist/list.json")?;
+    file.write_all(list_json_array.as_bytes())?;
+    println!("対応している地方公共団体コードの一覧を生成しました: dist/list.json");
+    Ok(())
 }
 
 /// RSSフィードを生成する関数
