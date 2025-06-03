@@ -57,8 +57,10 @@ pub fn return_292095() -> Result<(), Box<dyn std::error::Error>> {
                     let time = date_time.split_whitespace().nth(1).unwrap_or("").replace("時", ":").replace("分", "");
                     let disaster_type = if disaster_type.trim() == "その他警戒が発生" {
                         "その他警戒".to_string() // 「その他警戒が発生」の場合は「その他警戒」のみを出力
+                    } else if disaster_type.contains("事案が発生") { // 「事案が発生」が含まれている場合は「事案が発生」を省く
+                        disaster_type.trim().replace("事案が発生", "") 
                     } else {
-                        disaster_type.trim().replace("事案が発生", "") // それ以外は「事案が発生」を省く
+                        disaster_type.trim().replace("が発生", "") // 「事案が発生」ではなく単に「が発生」の場合においては「が発生」を省く
                     };
                     let address = format!("奈良県生駒市{}", address.trim());
 
