@@ -35,7 +35,7 @@ fn getsource() -> Result<String, Box<dyn std::error::Error>> {
 }
 
 pub fn return_011002() -> Result<(), Box<dyn std::error::Error>> {
-    println!("011022, 札幌市消防局");
+    println!("011002, 札幌市消防局");
     let body = getsource()?;
     let document = scraper::Html::parse_document(&body);
     let selector = scraper::Selector::parse("html body.format_free div#tmp_wrapper div#tmp_wrapper2 div#tmp_wrapper3 div#tmp_wrap_main.column_lnavi div#tmp_main div.wrap_col_main div.col_main div#tmp_contents").unwrap();
@@ -66,7 +66,7 @@ pub fn return_011002() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     let output = json!({
-        "jisx0402": "011022",
+        "jisx0402": "011002",
         "source": [
             {
                 "url": GET_SOURCE,

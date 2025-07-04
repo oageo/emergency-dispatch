@@ -65,8 +65,8 @@ pub fn return_322016() -> Result<(), Box<dyn std::error::Error>> {
     for element in document.select(&selector) {
         let text = to_half_width(&element.text().collect::<String>().trim().to_string()); // 全角数字を半角数字に変換
 
-        // 「ただいま管内で災害は発生しておりません」が含まれている場合はスキップ
-        if text.contains("ただいま管内で災害は発生しておりません") {
+        // 「ただいま管内で災害は発生しておりません」または「ないことを確認し終了」が含まれている場合はスキップ
+        if text.contains("ただいま管内で災害は発生しておりません") || text.contains("ないことを確認し終了") {
             continue;
         }
 

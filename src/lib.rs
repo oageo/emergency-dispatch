@@ -33,6 +33,7 @@ use crate::parse::parse_122033::return_122033;
 use crate::parse::parse_151009::return_151009;
 use crate::parse::parse_152021::return_152021;
 use crate::parse::parse_261009::return_261009;
+use crate::parse::parse_282189::return_282189;
 use crate::parse::parse_292095::return_292095;
 use crate::parse::parse_322016::return_322016;
 use crate::parse::parse_401005::return_401005;
@@ -46,6 +47,7 @@ pub fn get_all() -> Result<(), Box<dyn std::error::Error>> {
     return_151009()?;
     return_152021()?;
     return_261009()?;
+    return_282189()?;
     return_292095()?;
     return_322016()?;
     return_401005()?;
@@ -81,6 +83,7 @@ pub fn generate_list_json() -> Result<(), Box<dyn std::error::Error>> {
             list.push(jisx0402.to_string());
         }
     }
+    list.sort(); 
     let list_json_array = serde_json::to_string(&list)?;
     let mut file = fs::File::create("dist/list.json")?;
     file.write_all(list_json_array.as_bytes())?;
