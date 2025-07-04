@@ -79,12 +79,15 @@ pub fn return_322016() -> Result<(), Box<dyn std::error::Error>> {
                     .replace('　', "") // 全角スペースを削除
                     .replace("ただいま", "") // 「ただいま」を削除
             );
-            let disaster_type = reason
-                .trim()
-                .split("要請")
-                .next()
-                .unwrap_or("") // 「要請」以降を削除
-                .trim_end_matches("活動"); // 「活動」を削除
+            let reason = reason.trim();
+            let disaster_type = if let Some((ty, _)) = reason.split_once("要請") {
+                ty
+            } else if let Some((ty, _)) = reason.split_once("が発生") {
+                ty
+            } else {
+                reason
+            };
+            let disaster_type = disaster_type.trim_end_matches("活動");
 
             disaster_data.push(json!({
                 "type": disaster_type,
