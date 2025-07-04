@@ -84,6 +84,9 @@ pub fn return_322016() -> Result<(), Box<dyn std::error::Error>> {
                 ty
             } else if let Some((ty, _)) = reason.split_once("が発生") {
                 ty
+            } else if let Some((ty, _)) = reason.split_once("のため") {
+                ty
+            }
             } else {
                 reason
             };
