@@ -1,0 +1,102 @@
+use reqwest::blocking::Client;
+use reqwest::header::{HeaderMap};
+use serde_json::json;
+use std::fs::File;
+use std::io::Write;
+use encoding_rs::SHIFT_JIS; // Shift_JISエンコーディング用
+use crate::to_half_width; 
+
+// `ACCESS_UA`をlib.rsから参照
+use super::super::ACCESS_UA;
+
+const HOST: &str = "chb1018.hs.plala.or.jp";
+const ACCEPT: &str = "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8";
+const ACCEPT_LANGUAGE: &str = "ja,en-US;q=0.7,en;q=0.3";
+const CONNECTION: &str = "keep-alive";
+const CONTENT_TYPE: &str = "application/x-www-form-urlencoded";
+const GET_SOURCE: &str = "http://chb1018.hs.plala.or.jp/chiba119/Web/ichihara/annai_list.html";
+
+fn getsource() -> Result<String, Box<dyn std::error::Error>> {
+    let mut headers = HeaderMap::new();
+    headers.insert(reqwest::header::HOST, HOST.parse().unwrap());
+    headers.insert(reqwest::header::ACCEPT, ACCEPT.parse().unwrap());
+    headers.insert(reqwest::header::ACCEPT_LANGUAGE, ACCEPT_LANGUAGE.parse().unwrap());
+    headers.insert(reqwest::header::CONNECTION, CONNECTION.parse().unwrap());
+    headers.insert(reqwest::header::CONTENT_TYPE, CONTENT_TYPE.parse().unwrap());
+    headers.insert(reqwest::header::USER_AGENT, ACCESS_UA.parse()?);
+
+    let client = Client::builder()
+        .default_headers(headers.clone())
+        .build()?;
+
+    let res = client.get(GET_SOURCE)
+        .headers(headers)
+        .send()?;
+    let body_bytes = res.bytes()?; // バイト列として取得
+    let (body, _, _) = SHIFT_JIS.decode(&body_bytes); // Shift_JISからUTF-8に変換
+    Ok(body.into_owned())
+}
+
+pub fn return_122190() -> Result<(), Box<dyn std::error::Error>> {
+    println!("122190, 市原市消防局");
+    let body = getsource()?;
+    let document = scraper::Html::parse_document(&body);
+    let selector = scraper::Selector::parse("html body div strong").unwrap();
+    let mut disaster_data = vec![];
+
+    for element in document.select(&selector) {
+        let text = to_half_width(&element.text().collect::<String>())
+            .replace('　', "")
+            .replace(' ', "")
+            .trim()
+            .to_string();
+
+        if let Some((before, after)) = text.split_once("頃、市原市") {
+            // 時刻
+            let time = before.chars().rev().take(6).collect::<String>().chars().rev().collect::<String>()
+                .replace("時", ":").replace("分", "");
+
+            // 住所（「番」まで）
+            let address = if let Some(addr_end) = after.find("番") {
+                format!("市原市{}番", &after[..addr_end])
+            } else {
+                format!("市原市{}", after)
+            };
+
+            // 災害種別（「消防隊が」以降、「活動」まで）
+            let disaster_type = if let Some(rest) = after.split("消防隊が").nth(1) {
+                rest.split("活動").next().unwrap_or("").to_string()
+            } else {
+                "".to_string()
+            };
+
+            let disaster_type = disaster_type.trim();
+
+            if !disaster_type.is_empty() && !address.is_empty() && !time.is_empty() {
+                disaster_data.push(json!({
+                    "type": disaster_type,
+                    "address": address,
+                    "time": time
+                }));
+            }
+        }
+    }
+
+    let output = json!({
+        "jisx0402": "122190",
+        "source": [
+            {
+                "url": GET_SOURCE,
+                "name": "市原市消防局"
+            }
+        ],
+        "disasters": disaster_data
+    });
+
+    // JSONファイルに書き出し
+    let mut file = File::create("dist/122190.json")?;
+    file.write_all(output.to_string().as_bytes())?;
+    eprintln!("{:?}", output);
+    println!("JSONファイルが出力されました: 122190.json （市原市消防局）");
+    Ok(())
+}
