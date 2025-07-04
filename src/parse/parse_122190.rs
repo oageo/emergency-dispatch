@@ -50,8 +50,11 @@ pub fn return_122190() -> Result<(), Box<dyn std::error::Error>> {
             .replace(' ', "")
             .trim()
             .to_string();
-
-        if let Some((before, after)) = text.split_once("頃、市原市") {
+        // 「必ず火の元の点検をしましょう」が含まれている場合はスキップ
+        if text.contains("必ず火の元の点検をしましょう") {
+            continue;
+        }
+        else if let Some((before, after)) = text.split_once("頃、市原市") {
             // 時刻
             let time = before.chars().rev().take(6).collect::<String>().chars().rev().collect::<String>()
                 .replace("時", ":").replace("分", "");
