@@ -66,7 +66,9 @@ pub fn return_282189() -> Result<(), Box<dyn std::error::Error>> {
             .to_string();
 
         let disaster_type = cells[2].clone();
-        let address = format!("兵庫県小野市{}", &cells[4].replace('　', "").trim()[3..]);
+        let cleaned_address = cells[4].replace('　', "");
+        let address_part = cleaned_address.trim();
+        let address = format!("兵庫県小野市{}", address_part.strip_prefix("小野市").unwrap_or(address_part));
 
         disaster_data.push(json!({
             "type": disaster_type,
