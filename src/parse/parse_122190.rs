@@ -74,7 +74,7 @@ pub fn return_122190() -> Result<(), Box<dyn std::error::Error>> {
             };
 
             let disaster_type = disaster_type.trim();
-            let address = format!("千葉県{}", address);
+            let address = format!("千葉県{}", location);
 
             if !disaster_type.is_empty() && !address.is_empty() && !time.is_empty() {
                 disaster_data.push(json!({
