@@ -60,7 +60,7 @@ pub fn return_122190() -> Result<(), Box<dyn std::error::Error>> {
                 .replace("時", ":").replace("分", "");
 
             // 住所（「番」まで）
-            let address = if let Some(addr_end) = after.find("番") {
+            let location = if let Some(addr_end) = after.find("番") {
                 format!("市原市{}番", &after[..addr_end])
             } else {
                 format!("市原市{}", after)
@@ -74,6 +74,7 @@ pub fn return_122190() -> Result<(), Box<dyn std::error::Error>> {
             };
 
             let disaster_type = disaster_type.trim();
+            let address = format!("千葉県{}", address);
 
             if !disaster_type.is_empty() && !address.is_empty() && !time.is_empty() {
                 disaster_data.push(json!({
