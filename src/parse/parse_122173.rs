@@ -74,9 +74,8 @@ pub fn return_122173() -> Result<(), Box<dyn std::error::Error>> {
         if text.contains("現在、管内で災害は発生しておりません") || text.contains("終了") {
             continue;
         }
-
         // データを解析
-        if let Some((location, after_de)) = text.split_once("で") {
+        else if let Some((location, after_de)) = text.split_once("で") {
             // address: 全角括弧が一組だけの場合に対応
             let mut addr = location
                 .split("ごろ柏市")
