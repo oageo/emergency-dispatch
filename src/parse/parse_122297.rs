@@ -14,7 +14,7 @@ const ACCEPT: &str = "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;
 const ACCEPT_LANGUAGE: &str = "ja,en-US;q=0.7,en;q=0.3";
 const CONNECTION: &str = "keep-alive";
 const CONTENT_TYPE: &str = "application/x-www-form-urlencoded";
-const GET_SOURCE: &str = "http://chb1018.hs.plala.or.jp/chiba119/Web/ichihara/annai_list.html";
+const GET_SOURCE: &str = "http://chb1018.hs.plala.or.jp/chiba119/Web/sodegaura/annai_list.html";
 
 fn getsource() -> Result<String, Box<dyn std::error::Error>> {
     let mut headers = HeaderMap::new();
