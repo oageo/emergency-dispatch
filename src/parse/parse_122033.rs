@@ -1,40 +1,16 @@
-use reqwest::blocking::Client;
-use reqwest::header::{HeaderMap};
 use serde_json::json;
 use std::fs::File;
 use std::io::Write;
-use encoding_rs::SHIFT_JIS; // Shift_JISエンコーディング用
 use crate::to_half_width; 
 
-// `ACCESS_UA`をlib.rsから参照
-use super::super::ACCESS_UA;
+use super::super::{get_source_with_config, HttpRequestConfig};
 
 const HOST: &str = "mama.city.ichikawa.chiba.jp";
-const ACCEPT: &str = "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8";
-const ACCEPT_LANGUAGE: &str = "ja,en-US;q=0.7,en;q=0.3";
-const CONNECTION: &str = "keep-alive";
-const CONTENT_TYPE: &str = "application/x-www-form-urlencoded";
 const GET_SOURCE: &str = "http://mama.city.ichikawa.chiba.jp/saigai/index.html";
 
 fn getsource() -> Result<String, Box<dyn std::error::Error>> {
-    let mut headers = HeaderMap::new();
-    headers.insert(reqwest::header::HOST, HOST.parse().unwrap());
-    headers.insert(reqwest::header::ACCEPT, ACCEPT.parse().unwrap());
-    headers.insert(reqwest::header::ACCEPT_LANGUAGE, ACCEPT_LANGUAGE.parse().unwrap());
-    headers.insert(reqwest::header::CONNECTION, CONNECTION.parse().unwrap());
-    headers.insert(reqwest::header::CONTENT_TYPE, CONTENT_TYPE.parse().unwrap());
-    headers.insert(reqwest::header::USER_AGENT, ACCESS_UA.parse()?);
-
-    let client = Client::builder()
-        .default_headers(headers.clone())
-        .build()?;
-
-    let res = client.get(GET_SOURCE)
-        .headers(headers)
-        .send()?;
-    let body_bytes = res.bytes()?; // バイト列として取得
-    let (body, _, _) = SHIFT_JIS.decode(&body_bytes); // Shift_JISからUTF-8に変換
-    Ok(body.into_owned())
+    let config = HttpRequestConfig::new(HOST, GET_SOURCE).with_shift_jis(true);
+    get_source_with_config(&config)
 }
 
 pub fn return_122033() -> Result<(), Box<dyn std::error::Error>> {
