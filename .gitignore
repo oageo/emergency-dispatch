@@ -19,3 +19,6 @@ target/
 # 出力データ
 dist/
 
+# Claude Code
+.claude/
+

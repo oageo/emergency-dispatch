@@ -90,6 +90,27 @@ cargo run
 ### パーサー
 取得先によって条件が異なるため、`src/parse`以下にある`parse_（6桁の数字）.rs`によってそれぞれパースが行われている。6桁の数字は当該の地方公共団体コードとなっている。
 
+#### デフォルト値について
+HTTPリクエスト時に使用されるヘッダー値は、以下のようにデフォルト値が設定されている。
+
+* `Accept`: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"
+* `Accept-Language`: "ja,en-US;q=0.7,en;q=0.3"
+* `Connection`: "keep-alive"
+* `Content-Type`: "application/x-www-form-urlencoded"
+* `User-Agent`: ACCESS_UA定数で定義された値
+
+これらのデフォルト値を変更する場合は、各パーサーファイル内で`HttpRequestConfig`の対応するメソッドを呼び出すことで上書き可能である。このデフォルト値そのものを変更する場合は、`lib.rs`内に定義されている
+
+```rust
+let config = HttpRequestConfig::new(HOST, GET_SOURCE)
+    .with_accept("custom/accept")
+    .with_accept_language("ja-JP")
+    .with_connection("close")
+    .with_content_type("application/json");
+```
+
+Shift_JISエンコーディング（内部的にはUTF-8に変換してから処理を行っています）が必要な場合は、`.with_shift_jis(true)`を追加する。
+
 ### 定期実行
 Ubuntu環境において以下のような設定をすると定期的に実行できる。環境に合わせて適宜権限等の管理をする必要がある。
 
