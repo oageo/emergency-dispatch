@@ -3,10 +3,108 @@ use std::io::Write;
 use serde_json::Value;
 use chrono::{Local, NaiveTime, NaiveDate, DateTime, Utc};
 use regex::Regex;
+use reqwest::blocking::Client;
+use reqwest::header::HeaderMap;
+use encoding_rs::SHIFT_JIS;
 
 pub mod parse;
 
-pub const ACCESS_UA: &str = "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:137.0) Gecko/20100101 Firefox/137.0 edbot v0.1.0(https://github.com/oageo/emergency-dispatch)";
+pub const ACCESS_UA: &str = "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:141.0) Gecko/20100101 Firefox/141.0 edbot v0.1.1(https://github.com/oageo/emergency-dispatch)";
+
+// HTTPリクエスト用のデフォルト値
+const DEFAULT_ACCEPT: &str = "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8";
+const DEFAULT_ACCEPT_LANGUAGE: &str = "ja,en-US;q=0.7,en;q=0.3";
+const DEFAULT_CONNECTION: &str = "keep-alive";
+const DEFAULT_CONTENT_TYPE: &str = "application/x-www-form-urlencoded";
+
+#[derive(Debug, Clone)]
+pub struct HttpRequestConfig {
+    pub host: String,
+    pub url: String,
+    pub accept: Option<String>,
+    pub accept_language: Option<String>,
+    pub connection: Option<String>,
+    pub content_type: Option<String>,
+    pub use_shift_jis: bool,
+}
+
+impl HttpRequestConfig {
+    pub fn new(host: &str, url: &str) -> Self {
+        Self {
+            host: host.to_string(),
+            url: url.to_string(),
+            accept: None,
+            accept_language: None,
+            connection: None,
+            content_type: None,
+            use_shift_jis: false,
+        }
+    }
+
+    pub fn with_shift_jis(mut self, use_shift_jis: bool) -> Self {
+        self.use_shift_jis = use_shift_jis;
+        self
+    }
+
+    pub fn with_accept(mut self, accept: &str) -> Self {
+        self.accept = Some(accept.to_string());
+        self
+    }
+
+    pub fn with_accept_language(mut self, accept_language: &str) -> Self {
+        self.accept_language = Some(accept_language.to_string());
+        self
+    }
+
+    pub fn with_connection(mut self, connection: &str) -> Self {
+        self.connection = Some(connection.to_string());
+        self
+    }
+
+    pub fn with_content_type(mut self, content_type: &str) -> Self {
+        self.content_type = Some(content_type.to_string());
+        self
+    }
+}
+
+pub fn get_source_with_config(config: &HttpRequestConfig) -> Result<String, Box<dyn std::error::Error>> {
+    let mut headers = HeaderMap::new();
+    headers.insert(reqwest::header::HOST, config.host.parse()?);
+    headers.insert(
+        reqwest::header::ACCEPT, 
+        config.accept.as_deref().unwrap_or(DEFAULT_ACCEPT).parse()?
+    );
+    headers.insert(
+        reqwest::header::ACCEPT_LANGUAGE, 
+        config.accept_language.as_deref().unwrap_or(DEFAULT_ACCEPT_LANGUAGE).parse()?
+    );
+    headers.insert(
+        reqwest::header::CONNECTION, 
+        config.connection.as_deref().unwrap_or(DEFAULT_CONNECTION).parse()?
+    );
+    headers.insert(
+        reqwest::header::CONTENT_TYPE, 
+        config.content_type.as_deref().unwrap_or(DEFAULT_CONTENT_TYPE).parse()?
+    );
+    headers.insert(reqwest::header::USER_AGENT, ACCESS_UA.parse()?);
+
+    let client = Client::builder()
+        .default_headers(headers.clone())
+        .build()?;
+
+    let res = client.get(&config.url)
+        .headers(headers)
+        .send()?;
+
+    if config.use_shift_jis {
+        let body_bytes = res.bytes()?;
+        let (body, _, _) = SHIFT_JIS.decode(&body_bytes);
+        Ok(body.into_owned())
+    } else {
+        let body = res.text()?;
+        Ok(body)
+    }
+}
 
 pub fn to_half_width(s: &str) -> String {
     s.chars()
@@ -30,6 +128,9 @@ use crate::parse::parse_011002::return_011002;
 use crate::parse::parse_022098::return_022098;
 use crate::parse::parse_062103::return_062103;
 use crate::parse::parse_122033::return_122033;
+use crate::parse::parse_122173::return_122173;
+use crate::parse::parse_122190::return_122190;
+use crate::parse::parse_122297::return_122297;
 use crate::parse::parse_151009::return_151009;
 use crate::parse::parse_152021::return_152021;
 use crate::parse::parse_261009::return_261009;
@@ -44,6 +145,9 @@ pub fn get_all() -> Result<(), Box<dyn std::error::Error>> {
     return_022098()?;
     return_062103()?;
     return_122033()?;
+    return_122173()?;
+    return_122190()?;
+    return_122297()?;
     return_151009()?;
     return_152021()?;
     return_261009()?;
