@@ -125,14 +125,17 @@ pub fn to_half_width(s: &str) -> String {
 }
 
 use crate::parse::parse_011002::return_011002;
+use crate::parse::parse_012025::return_012025;
 use crate::parse::parse_022098::return_022098;
 use crate::parse::parse_062103::return_062103;
+use crate::parse::parse_083020::return_083020;
 use crate::parse::parse_122033::return_122033;
 use crate::parse::parse_122173::return_122173;
 use crate::parse::parse_122190::return_122190;
 use crate::parse::parse_122297::return_122297;
 use crate::parse::parse_151009::return_151009;
 use crate::parse::parse_152021::return_152021;
+use crate::parse::parse_172031::return_172031;
 use crate::parse::parse_261009::return_261009;
 use crate::parse::parse_282189::return_282189;
 use crate::parse::parse_292095::return_292095;
@@ -142,14 +145,17 @@ use crate::parse::parse_401307::return_401307;
 
 pub fn get_all() -> Result<(), Box<dyn std::error::Error>> {
     return_011002()?; 
+    return_012025()?;
     return_022098()?;
     return_062103()?;
+    return_083020()?;
     return_122033()?;
     return_122173()?;
     return_122190()?;
     return_122297()?;
     return_151009()?;
     return_152021()?;
+    return_172031()?;
     return_261009()?;
     return_282189()?;
     return_292095()?;
@@ -278,5 +284,43 @@ pub fn generate_rss_feed() -> Result<(), Box<dyn std::error::Error>> {
     file.write_all(rss_feed.as_bytes())?;
 
     println!("RSSフィードが生成されました: dist/all_feed.xml");
+    Ok(())
+}
+
+
+/// 災害情報があるJSONファイルをjisx0402をキーとした統合JSONファイル(all.json)として生成する関数
+pub fn generate_all_json() -> Result<(), Box<dyn std::error::Error>> {
+    let files = get_all_json()?;
+    let mut all_data = serde_json::Map::new();
+
+    // 各JSONファイルを読み込む
+    for file in files {
+        let data = fs::read_to_string(&file)?;
+        let json: Value = serde_json::from_str(&data)?;
+
+        // 災害情報があるかチェック
+        if let Some(disasters) = json["disasters"].as_array() {
+            if !disasters.is_empty() {
+                // jisx0402をキーとして使用
+                if let Some(jisx0402) = json["jisx0402"].as_str() {
+                    // jisx0402フィールドを除いた残りのデータを格納
+                    let mut filtered_data = serde_json::Map::new();
+                    if let Some(source) = json.get("source") {
+                        filtered_data.insert("source".to_string(), source.clone());
+                    }
+                    filtered_data.insert("disasters".to_string(), Value::Array(disasters.clone()));
+                    
+                    all_data.insert(jisx0402.to_string(), Value::Object(filtered_data));
+                }
+            }
+        }
+    }
+
+    // all.jsonファイルに保存
+    let output = Value::Object(all_data);
+    let mut file = fs::File::create("dist/all.json")?;
+    file.write_all(serde_json::to_string_pretty(&output)?.as_bytes())?;
+
+    println!("統合災害情報ファイルが生成されました: dist/all.json");
     Ok(())
 }
