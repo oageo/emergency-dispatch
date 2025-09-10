@@ -127,6 +127,7 @@ pub fn to_half_width(s: &str) -> String {
 use crate::parse::parse_011002::return_011002;
 use crate::parse::parse_012025::return_012025;
 use crate::parse::parse_012173::return_012173;
+use crate::parse::parse_012246::return_012246;
 use crate::parse::parse_012343::return_012343;
 use crate::parse::parse_022098::return_022098;
 use crate::parse::parse_062103::return_062103;
@@ -149,6 +150,7 @@ pub fn get_all() -> Result<(), Box<dyn std::error::Error>> {
     return_011002()?; 
     return_012025()?;
     return_012173()?;
+    return_012246()?;
     return_012343()?;
     return_022098()?;
     return_062103()?;
