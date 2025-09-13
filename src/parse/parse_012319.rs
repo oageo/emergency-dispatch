@@ -8,7 +8,7 @@ const HOST: &str = "www.119.city.sapporo.jp";
 const GET_SOURCE: &str = "https://www.119.city.sapporo.jp/saigai/04/index.html";
 
 fn getsource() -> Result<String, Box<dyn std::error::Error>> {
-    let config = HttpRequestConfig::new(HOST, GET_SOURCE);
+    let config = HttpRequestConfig::new(HOST, GET_SOURCE).with_shift_jis(true);
     get_source_with_config(&config)
 }
 
@@ -24,8 +24,10 @@ pub fn return_012319() -> Result<(), Box<dyn std::error::Error>> {
         // 恵庭市の出動情報部分のみを抽出
         if let Some(start) = text.find("◆現在の出動") {
             let after_start = &text[start..];
-            // 終了点を見つける（救急出動情報で終了）
-            let end = after_start.find("◆救急出動情報").unwrap_or(after_start.len());
+            // 終了点を見つける（救急出動情報または「出動中の災害は以上です」で終了）
+            let end = after_start.find("◆救急出動情報")
+                .or_else(|| after_start.find("出動中の災害は以上です"))
+                .unwrap_or(after_start.len());
             let dispatch_text = &after_start[..end];
             
             // 災害がない場合のチェック
