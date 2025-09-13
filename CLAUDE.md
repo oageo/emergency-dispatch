@@ -90,3 +90,207 @@ To add support for a new municipality:
 - **chrono**: Date and time handling for RSS feed generation
 - **regex**: Pattern matching for file operations
 - **encoding_rs**: Character encoding handling
+
+## HTTP Configuration System
+
+The codebase uses a centralized `HttpRequestConfig` struct for handling different website requirements:
+
+- **Default headers**: Defined as constants in `lib.rs` (Accept, Accept-Language, Connection, Content-Type)
+- **Character encoding**: Use `.with_shift_jis(true)` only when the target website specifically uses Shift_JIS encoding (check the HTML meta charset or test for garbled text)
+- **Custom headers**: Override defaults using methods like `.with_accept()`, `.with_accept_language()`
+
+### Example Usage:
+```rust
+let config = HttpRequestConfig::new(HOST, GET_SOURCE)
+    .with_shift_jis(true)  // Only when target site uses Shift_JIS
+    .with_accept("custom/accept");
+```
+
+## Parser Development Approach
+
+When creating a new parser, follow this analysis process:
+
+1. **Compare with existing parsers**: Check if the target website shares patterns with existing municipalities
+2. **Identify HTML structure**: Look for common Japanese patterns like `◆現在の出動`, `出動情報`, `災害情報`
+3. **Test encoding**: Start with default (UTF-8), only add `.with_shift_jis(true)` if text appears garbled
+4. **Pattern matching**: Look for existing text processing patterns that might apply
+
+### Common Japanese Text Patterns
+
+Some patterns found across multiple municipalities (analyze each case individually):
+- **Time format conversion**: `時` → `:`, `分` → `` (empty)
+- **Section markers**: `◆`, `●`, `・` often indicate different content sections
+- **Address formatting**: Some regions require prefecture prefixes
+- **Empty state indicators**: Various phrases indicate no current dispatches
+
+## Testing Individual Parsers
+
+To test a specific municipality parser during development:
+1. Temporarily modify `get_all()` in `lib.rs` to call only the desired parser function
+2. Run `cargo run` to execute only that parser
+3. Check the output in `dist/XXXXXX.json`
+
+## UTF-8 String Processing Guidelines
+
+**CRITICAL**: When working with Japanese text, always use UTF-8-safe string operations to avoid `is_char_boundary` panics.
+
+### Core Principle: Never Mix Byte Indices with Character Data
+
+The fundamental issue is that `find()` returns **byte indices**, but Japanese characters can be 2-4 bytes each. Using byte indices for string slicing can split characters in the middle, causing panics.
+
+### Safe Text Processing Strategies
+
+#### 1. Text Extraction Between Markers
+```rust
+// ❌ UNSAFE: Using byte indices from find()
+if let Some(start) = text.find(start_marker) {
+    let after_start = &text[start..];  // Can panic on multibyte chars
+    if let Some(end) = after_start.find(end_marker) {
+        let extracted = &after_start[..end];  // Can panic
+    }
+}
+
+// ✅ SAFE: Using split() for extraction
+let extracted = text
+    .split(start_marker).nth(1)  // Get text after start marker
+    .and_then(|s| s.split(end_marker).next())  // Get text before end marker
+    .unwrap_or("");
+
+// ✅ SAFE: Chain multiple splits for complex extraction
+let result = text
+    .split(first_marker).nth(1).unwrap_or("")
+    .split(second_marker).next().unwrap_or("")
+    .split(third_marker).next().unwrap_or("");
+```
+
+#### 2. Removing Unwanted Text Patterns
+```rust
+// ❌ UNSAFE: Using indices for removal
+if let (Some(start), Some(end)) = (text.find(open_char), text.find(close_char)) {
+    text.replace_range(start..=end, "");  // Can panic
+}
+
+// ✅ SAFE: Replacement-based removal
+let cleaned = text.replace(unwanted_pattern, "");
+
+// ✅ SAFE: Split-based removal for complex patterns
+let cleaned = if text.contains(open_char) && text.contains(close_char) {
+    let parts: Vec<&str> = text.split(open_char).collect();
+    if parts.len() >= 2 {
+        let before = parts[0];
+        let after_parts: Vec<&str> = parts[1].split(close_char).collect();
+        if after_parts.len() >= 2 {
+            format!("{}{}", before, after_parts[1])
+        } else {
+            before.to_string()
+        }
+    } else {
+        text.to_string()
+    }
+} else {
+    text.to_string()
+};
+```
+
+#### 3. Address and Location Processing
+```rust
+// ✅ SAFE: Progressive text refinement
+let processed_address = original_text
+    .split(city_marker).nth(1).unwrap_or("")  // Extract after city name
+    .split(suffix_marker).next().unwrap_or("")  // Extract before suffix
+    .replace(unwanted_chars, "")  // Remove unwanted characters
+    .trim()  // Clean whitespace
+    .to_string();
+
+// ✅ SAFE: Conditional formatting
+let final_address = if processed_address.contains(suffix) {
+    let base = processed_address.split(suffix).next().unwrap_or("");
+    format!("{}{}{}", prefix, base, suffix)
+} else {
+    format!("{}{}", prefix, processed_address)
+};
+```
+
+#### 4. Time and Date Processing
+```rust
+// ✅ SAFE: Character-based replacements
+let formatted_time = raw_time
+    .chars()
+    .rev()
+    .take(char_count)
+    .collect::<String>()
+    .chars()
+    .rev()
+    .collect::<String>()
+    .replace(hour_char, ":")
+    .replace(minute_char, "");
+```
+
+### Universal Safe Patterns
+
+#### Pattern 1: Sequential Text Extraction
+```rust
+fn extract_between_markers(text: &str, start: &str, end: &str) -> Option<&str> {
+    text.split(start).nth(1)?.split(end).next()
+}
+```
+
+#### Pattern 2: Multi-Stage Text Processing
+```rust
+fn process_text_safely(text: &str, markers: &[&str], replacements: &[(&str, &str)]) -> String {
+    let mut result = text;
+
+    // Stage 1: Extract using markers
+    for (i, marker) in markers.iter().enumerate() {
+        if let Some(extracted) = result.split(marker).nth(1) {
+            result = extracted;
+        }
+    }
+
+    // Stage 2: Apply replacements
+    let mut final_result = result.to_string();
+    for (from, to) in replacements {
+        final_result = final_result.replace(from, to);
+    }
+
+    final_result.trim().to_string()
+}
+```
+
+#### Pattern 3: Conditional Text Transformation
+```rust
+fn transform_conditionally(text: &str, conditions: &[&str], transformations: &[fn(&str) -> String]) -> String {
+    for (condition, transform) in conditions.iter().zip(transformations.iter()) {
+        if text.contains(condition) {
+            return transform(text);
+        }
+    }
+    text.to_string()
+}
+```
+
+### Development Guidelines
+
+1. **Always use `split()` for text segmentation** - never combine `find()` with slicing
+2. **Use `replace()` for simple character/pattern removal**
+3. **Chain operations safely** - each step should handle the absence of expected patterns
+4. **Test with real Japanese data** containing various character combinations
+5. **Prefer character-based operations** (`chars()`) over byte-based operations
+6. **Use `unwrap_or()` and `unwrap_or_else()`** to handle missing patterns gracefully
+
+### Error Prevention Checklist
+
+Before committing parser code, verify:
+- [ ] No `&text[index..]` or `&text[..index]` or `&text[start..end]` patterns
+- [ ] No `replace_range()` with `find()` indices
+- [ ] All text extraction uses `split()` or `replace()`
+- [ ] Error handling for missing patterns (using `unwrap_or()`)
+- [ ] Testing with actual fire department data
+
+### Debugging UTF-8 Issues
+
+When encountering `is_char_boundary` panics:
+1. **Identify the operation**: Look for slice operations in the stack trace
+2. **Find the byte index source**: Usually from `find()`, `rfind()`, or similar methods
+3. **Replace with character-safe alternatives**: Use the patterns above
+4. **Verify with diverse test data**: Include various Japanese character combinations

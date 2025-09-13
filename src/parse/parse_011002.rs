@@ -22,11 +22,10 @@ pub fn return_011002() -> Result<(), Box<dyn std::error::Error>> {
         let text = element.text().collect::<Vec<_>>().join("\n");
         
         // 札幌市の部分のみを抽出
-        if let Some(sapporo_start) = text.find("〇札幌市") {
-            let after_sapporo = &text[sapporo_start..];
+        if let Some(_) = text.find("〇札幌市") {
+            let after_sapporo = text.split("〇札幌市").nth(1).unwrap_or("");
             // 札幌市の部分の終了点を見つける（江別市で終了）
-            let sapporo_end = after_sapporo.find("〇江別市").unwrap_or(after_sapporo.len());
-            let sapporo_text = &after_sapporo[..sapporo_end];
+            let sapporo_text = after_sapporo.split("〇江別市").next().unwrap_or(after_sapporo);
             
             // 災害がない場合のチェック
             if !sapporo_text.contains("現在出動中の災害はありません") {

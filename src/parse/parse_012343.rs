@@ -22,13 +22,18 @@ pub fn return_012343() -> Result<(), Box<dyn std::error::Error>> {
         let text = element.text().collect::<Vec<_>>().join("\n");
         
         // 北広島市の出動情報部分のみを抽出
-        if let Some(start) = text.find("◆現在の出動") {
-            let after_start = &text[start..];
+        if let Some(_) = text.find("◆現在の出動") {
+            let after_start = text.split("◆現在の出動").nth(1).unwrap_or("");
             // 終了点を見つける（救急出動情報または「出動中の災害は以上です」で終了）
-            let end = after_start.find("◆救急出動情報")
-                .or_else(|| after_start.find("出動中の災害は以上です"))
-                .unwrap_or(after_start.len());
-            let dispatch_text = &after_start[..end];
+            let dispatch_text = if let Some(split_text) = after_start.split("◆救急出動情報").next() {
+                if let Some(final_text) = split_text.split("出動中の災害は以上です").next() {
+                    final_text
+                } else {
+                    split_text
+                }
+            } else {
+                after_start
+            };
             
             // 災害がない場合のチェック
             if !dispatch_text.contains("現在出動中の災害はありません") {
