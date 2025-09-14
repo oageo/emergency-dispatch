@@ -1,7 +1,7 @@
 use std::fs;
 use std::io::Write;
 use serde_json::Value;
-use chrono::{Local, NaiveTime, NaiveDate, DateTime, Utc};
+use chrono::{Local, NaiveTime, DateTime, Utc, Datelike, Timelike};
 use regex::Regex;
 use reqwest::blocking::Client;
 use reqwest::header::HeaderMap;
@@ -222,7 +222,11 @@ pub fn generate_rss_feed() -> Result<(), Box<dyn std::error::Error>> {
         let data = fs::read_to_string(&file)?;
         let json: Value = serde_json::from_str(&data)?;
 
-        if let (Some(source), Some(disasters)) = (json["source"].as_array(), json["disasters"].as_array()) {
+        if let (Some(source), Some(disasters), Some(jisx0402)) = (
+            json["source"].as_array(),
+            json["disasters"].as_array(),
+            json["jisx0402"].as_str()
+        ) {
             if let (Some(source_name), Some(source_url)) = (
                 source.get(0).and_then(|s| s["name"].as_str()),
                 source.get(0).and_then(|s| s["url"].as_str()),
@@ -244,8 +248,18 @@ pub fn generate_rss_feed() -> Result<(), Box<dyn std::error::Error>> {
 
                             // 実行時刻と比較して10分以上未来の場合、1日前の日付を設定
                             if disaster_datetime > now_naive + chrono::Duration::minutes(10) {
-                                disaster_date = disaster_date.pred(); // 1日前の日付に変更
+                                disaster_date = disaster_date.pred_opt().unwrap_or(disaster_date); // 1日前の日付に変更
                             }
+
+                            // guidを生成（YYYYMMDDHHMM-jisx0402形式）
+                            let guid = format!("{}{:02}{:02}{:02}{:02}-{}",
+                                disaster_date.year(),
+                                disaster_date.month(),
+                                disaster_date.day(),
+                                parsed_time.hour(),
+                                parsed_time.minute(),
+                                jisx0402
+                            );
 
                             let iso8601_time = format!("{}T{}", disaster_date, parsed_time);
                             all_disasters.push((
@@ -253,6 +267,8 @@ pub fn generate_rss_feed() -> Result<(), Box<dyn std::error::Error>> {
                                 format!("{}（{}）", disaster_type, source_name), // タイトルに「disaster_type（source.name）」を表示
                                 address.to_string(),
                                 source_url.to_string(), // ソースURLを含める
+                                jisx0402.to_string(),
+                                guid,
                             ));
                         }
                     }
@@ -262,9 +278,23 @@ pub fn generate_rss_feed() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     // 時間順にソート
-    all_disasters.sort_by_key(|(time, _, _, _)| {
+    all_disasters.sort_by_key(|(time, _, _, _, _, _)| {
         DateTime::parse_from_rfc3339(time).unwrap_or_else(|_| Utc::now().into())
     });
+
+    // 重複するguidを解決（シーケンス番号を付与）
+    use std::collections::HashMap;
+    let mut guid_counts: HashMap<String, i32> = HashMap::new();
+
+    for disaster in &mut all_disasters {
+        let base_guid = disaster.5.clone(); // guidは6番目の要素
+        let count = guid_counts.entry(base_guid.clone()).or_insert(0);
+        *count += 1;
+
+        if *count > 1 {
+            disaster.5 = format!("{}-{:02}", base_guid, *count - 1);
+        }
+    }
 
     // RSSフィードを生成
     let mut rss_feed = String::from(r#"<?xml version="1.0" encoding="UTF-8"?>"#);
@@ -276,12 +306,13 @@ pub fn generate_rss_feed() -> Result<(), Box<dyn std::error::Error>> {
     rss_feed.push_str("<generator>emergency-dispatch</generator>");
     rss_feed.push_str("<language>ja</language>");
 
-    for (time, title, address, source_url) in all_disasters {
+    for (time, title, address, source_url, _jisx0402, guid) in all_disasters {
         rss_feed.push_str("<item>");
         rss_feed.push_str(&format!("<title>{}</title>", title));
         rss_feed.push_str(&format!("<description>{}</description>", address));
         rss_feed.push_str(&format!("<link>{}</link>", source_url)); // ソースURLを含める
         rss_feed.push_str(&format!("<pubDate>{}</pubDate>", time));
+        rss_feed.push_str(&format!("<guid isPermaLink=\"false\">{}</guid>", guid));
         rss_feed.push_str("</item>");
     }
 
