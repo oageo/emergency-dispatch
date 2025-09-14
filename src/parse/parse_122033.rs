@@ -90,6 +90,8 @@ pub fn return_122033() -> Result<(), Box<dyn std::error::Error>> {
                         .next()
                         .unwrap_or(type_part)
                         .trim()
+                        .replace("活動", "")
+                        .trim()
                         .to_string();
 
                     let address = format!("千葉県市川市{}", address.trim());
