@@ -1,5 +1,6 @@
 use std::fs;
 use std::io::Write;
+use std::collections::HashMap;
 use serde_json::Value;
 use chrono::{Local, NaiveTime, DateTime, Utc, Datelike, Timelike};
 use regex::Regex;
@@ -214,6 +215,9 @@ pub fn generate_rss_feed() -> Result<(), Box<dyn std::error::Error>> {
     let mut all_disasters = vec![];
     let files = get_all_json().expect("RSSフィードの生成中に、JSONファイルの取得に失敗しました");
 
+    // 前回のguidマッピングを読み込み
+    let previous_guid_mapping = load_previous_guid_mapping();
+
     // 現在の日時を取得
     let now = Local::now();
 
@@ -251,15 +255,23 @@ pub fn generate_rss_feed() -> Result<(), Box<dyn std::error::Error>> {
                                 disaster_date = disaster_date.pred_opt().unwrap_or(disaster_date); // 1日前の日付に変更
                             }
 
-                            // guidを生成（YYYYMMDDHHMM-jisx0402形式）
-                            let guid = format!("{}{:02}{:02}{:02}{:02}-{}",
-                                disaster_date.year(),
-                                disaster_date.month(),
-                                disaster_date.day(),
-                                parsed_time.hour(),
-                                parsed_time.minute(),
-                                jisx0402
-                            );
+                            // 災害の本質（時間以外の情報）をキーとする
+                            let disaster_essence = format!("{}-{}", address, disaster_type);
+
+                            // 同一本質の災害には同じguidを使用、新規なら新しいguidを生成
+                            let guid = if let Some(existing_guid) = previous_guid_mapping.get(&disaster_essence) {
+                                existing_guid.clone() // 同一本質なら前回guidを再利用
+                            } else {
+                                // 新規災害なら新しいguidを生成（既存機構）
+                                format!("{}{:02}{:02}{:02}{:02}-{}",
+                                    disaster_date.year(),
+                                    disaster_date.month(),
+                                    disaster_date.day(),
+                                    parsed_time.hour(),
+                                    parsed_time.minute(),
+                                    jisx0402
+                                )
+                            };
 
                             let iso8601_time = format!("{}T{}", disaster_date, parsed_time);
                             all_disasters.push((
@@ -362,4 +374,55 @@ pub fn generate_all_json() -> Result<(), Box<dyn std::error::Error>> {
 
     println!("統合災害情報ファイルが生成されました: dist/all.json");
     Ok(())
+}
+
+/// 前回のRSSフィードから災害本質とguidのマッピングを読み込む関数
+fn load_previous_guid_mapping() -> HashMap<String, String> {
+    let mut guid_mapping = HashMap::new();
+
+    if let Ok(rss_content) = fs::read_to_string("dist/all_feed.xml") {
+        // 簡単なXML解析でdescription（住所）、title（災害種別）、guidを抽出
+        let lines: Vec<&str> = rss_content.lines().collect();
+        let mut i = 0;
+
+        while i < lines.len() {
+            if lines[i].trim().starts_with("<item>") {
+                let mut title = "";
+                let mut description = "";
+                let mut guid = "";
+                let mut j = i + 1;
+
+                while j < lines.len() && !lines[j].trim().starts_with("</item>") {
+                    let line = lines[j].trim();
+                    if line.starts_with("<title>") {
+                        title = line.trim_start_matches("<title>").trim_end_matches("</title>");
+                    } else if line.starts_with("<description>") {
+                        description = line.trim_start_matches("<description>").trim_end_matches("</description>");
+                    } else if line.starts_with("<guid ") {
+                        // <guid isPermaLink="false">GUID値</guid> から GUID値 を抽出
+                        if let Some(start) = line.find('>') {
+                            if let Some(end) = line.find("</guid>") {
+                                guid = &line[start + 1..end];
+                            }
+                        }
+                    }
+                    j += 1;
+                }
+
+                if !title.is_empty() && !description.is_empty() && !guid.is_empty() {
+                    // titleから災害種別を抽出（「災害種別（消防局名）」形式）
+                    if let Some((disaster_type, _)) = title.split_once("（") {
+                        // 災害の本質（時間以外の情報）
+                        let disaster_essence = format!("{}-{}", description, disaster_type);
+                        guid_mapping.insert(disaster_essence, guid.to_string());
+                    }
+                }
+                i = j;
+            } else {
+                i += 1;
+            }
+        }
+    }
+
+    guid_mapping
 }
