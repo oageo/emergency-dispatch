@@ -86,6 +86,9 @@ pub fn return_122033() -> Result<(), Box<dyn std::error::Error>> {
 
                     // 災害タイプの抽出
                     let disaster_type = type_part
+                        .split("が発生し")
+                        .next()
+                        .unwrap_or(type_part)
                         .split("のため消防車が出場しています")
                         .next()
                         .unwrap_or(type_part)
