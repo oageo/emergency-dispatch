@@ -24,8 +24,8 @@ pub fn return_122033() -> Result<(), Box<dyn std::error::Error>> {
     for element in document.select(&selector) {
         let text = to_half_width(&element.text().collect::<String>().trim().to_string()); // `to_half_width`を使用
 
-        // 「終了」または「只今、災害は発生しておりません。」が含まれている場合はスキップ
-        if text.contains("終了") || text.contains("只今、災害は発生しておりません。") {
+        // 「終了」、「鎮火」、または「只今、災害は発生しておりません。」が含まれている場合はスキップ
+        if text.contains("終了") || text.contains("鎮火") || text.contains("只今、災害は発生しておりません。") {
             continue;
         }
 
