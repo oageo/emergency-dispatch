@@ -2,6 +2,7 @@ use serde_json::json;
 use std::fs::File;
 use std::io::Write;
 use crate::to_half_width;
+use chrono::{DateTime, Local, Duration};
 
 use super::super::{get_source_with_config, HttpRequestConfig};
 
@@ -20,8 +21,32 @@ pub fn return_231002() -> Result<(), Box<dyn std::error::Error>> {
     let article_selector = scraper::Selector::parse("article").unwrap();
     let mut disaster_data = vec![];
 
+    // 現在時刻を取得（JST）
+    let now = Local::now();
+    // 24時間前の時刻を計算
+    let time_threshold = now - Duration::hours(24);
+
     // 各article要素を処理
     for article in document.select(&article_selector) {
+        // 投稿日時を取得してフィルタリング
+        let time_selector = scraper::Selector::parse("time.entry-date").unwrap();
+        let post_datetime = article
+            .select(&time_selector)
+            .next()
+            .and_then(|element| element.value().attr("datetime"))
+            .and_then(|dt_str| DateTime::parse_from_rfc3339(dt_str).ok())
+            .map(|dt| dt.with_timezone(&Local));
+
+        // 投稿日時が24時間以内でない場合はスキップ
+        if let Some(post_time) = post_datetime {
+            if post_time < time_threshold {
+                continue;
+            }
+        } else {
+            // 投稿日時が取得できない場合もスキップ
+            continue;
+        }
+
         // タイトルを取得して「火災発生」かどうかを確認
         let title_selector = scraper::Selector::parse("h1.entry-title").unwrap();
         let title = article
