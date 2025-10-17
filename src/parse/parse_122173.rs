@@ -46,8 +46,8 @@ pub fn return_122173() -> Result<(), Box<dyn std::error::Error>> {
             .trim()
             .to_string();
 
-        // 「現在、管内で災害は発生しておりません」または「終了」が含まれている場合はスキップ
-        if text.contains("現在、管内で災害は発生しておりません") || text.contains("終了") {
+        // 「現在、管内で災害は発生しておりません」または「終了」、「鎮火」が含まれている場合はスキップ
+        if text.contains("現在、管内で災害は発生しておりません") || text.contains("終了") || text.contains("鎮火") {
             continue;
         }
         // データを解析
