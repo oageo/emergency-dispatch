@@ -2,7 +2,6 @@ use emergency_dispatch::get_all;
 use emergency_dispatch::generate_list_json;
 use emergency_dispatch::generate_all_json;
 use emergency_dispatch::generate_rss_feed;
-use emergency_dispatch::clear_source_cache;
 use std::fs;
 
 fn main() {
@@ -17,7 +16,4 @@ fn main() {
     generate_list_json().expect("対応している地方公共団体コードの一覧の生成に失敗しました");
     generate_all_json().expect("統合災害情報ファイルの生成に失敗しました");
     generate_rss_feed().expect("RSSフィードの生成に失敗しました");
-
-    // キャッシュを明示的にクリア
-    clear_source_cache();
 }
