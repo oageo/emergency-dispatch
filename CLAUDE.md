@@ -22,12 +22,20 @@ This is a Rust application that scrapes emergency dispatch information from vari
 
 ### Core Components
 
-- **`main.rs`**: Entry point that orchestrates the entire process - creates output directory, runs all parsers, generates metadata
+- **`main.rs`**: Entry point that orchestrates the entire process in the following order:
+  1. Creates output directory (`dist/`)
+  2. Runs all parsers via `get_all()` to fetch and output individual municipality JSON files
+  3. Generates `list.json` via `generate_list_json()`
+  4. Generates `all.json` via `generate_all_json()`
+  5. Generates `all_feed.xml` via `generate_rss_feed()`
+
 - **`lib.rs`**: Contains shared utilities and the main coordination logic:
   - `get_all()`: Executes all city-specific parsers
   - `generate_list_json()`: Creates list of supported municipality codes
+  - `generate_all_json()`: Creates unified JSON file with all active disasters
   - `generate_rss_feed()`: Generates RSS feed from all collected data
   - `to_half_width()`: Utility for converting full-width to half-width numbers
+  - `load_previous_guid_mapping()`: Loads GUID mappings from previous RSS feed for deduplication
 
 ### Parser Architecture
 
@@ -76,42 +84,86 @@ The system supports multiple Japanese municipalities across various prefectures,
 
 ## Adding New Municipalities
 
-To add support for a new municipality:
+To add support for a new municipality, follow these steps in order:
 
-1. Create `src/parse/parse_XXXXXX.rs` (where XXXXXX is the municipal code)
-2. Implement `return_XXXXXX()` function following existing patterns
-3. Add module declaration to `src/parse/mod.rs`
-4. Add function call to `get_all()` in `lib.rs`
-5. Add import statement at the top of `lib.rs`
+1. **Create parser file**: `src/parse/parse_XXXXXX.rs` (where XXXXXX is the 6-digit municipal code)
+   - Implement the `return_XXXXXX()` function that returns `Result<(), Box<dyn std::error::Error>>`
+   - Follow existing parser patterns for consistency
+   - Use `HttpRequestConfig` for HTTP requests
+   - Output to `dist/XXXXXX.json` in the standard format
+
+2. **Add module declaration**: In `src/parse/mod.rs`, add:
+   ```rust
+   pub mod parse_XXXXXX;
+   ```
+
+3. **Add import statement**: At the top of `src/lib.rs`, add:
+   ```rust
+   use crate::parse::parse_XXXXXX::return_XXXXXX;
+   ```
+
+4. **Add function call**: In the `get_all()` function in `src/lib.rs`, add:
+   ```rust
+   return_XXXXXX()?;
+   ```
+
+5. **Update README.md**: Add the municipality to the "対応市区町村" section with its name, fire department name, and 6-digit code
+
+6. **Test the implementation**:
+   - Run `cargo check` to verify compilation
+   - Run `cargo run` to execute all parsers including the new one
+   - Verify `dist/XXXXXX.json` is created with correct format
+   - Check that the new municipality appears in `dist/list.json` and `dist/all.json`
 
 ## Output Files
 
 - `dist/XXXXXX.json`: Individual municipality data files
 - `dist/list.json`: Array of all supported municipal codes
+- `dist/all.json`: Unified JSON file containing all municipalities with active disasters, using jisx0402 codes as keys (municipalities with no active disasters are excluded)
 - `dist/all_feed.xml`: RSS 2.0 feed combining all emergency dispatches
 
 ## Dependencies
 
-- **reqwest**: HTTP client for fetching web pages
-- **scraper**: HTML parsing and CSS selector support
-- **serde_json**: JSON serialization/deserialization
-- **chrono**: Date and time handling for RSS feed generation
-- **regex**: Pattern matching for file operations
-- **encoding_rs**: Character encoding handling
+Key dependencies as defined in `Cargo.toml`:
+
+- **reqwest** (0.12.15 with blocking and json features): HTTP client for fetching web pages
+- **scraper** (0.23.1): HTML parsing and CSS selector support
+- **serde_json** (1.0.140): JSON serialization/deserialization
+- **chrono** (0.4.40): Date and time handling for RSS feed generation
+- **regex** (1.11.1): Pattern matching for file operations
+- **encoding_rs** (0.8.35): Character encoding handling (primarily for Shift_JIS support)
+
+**Note**: The project uses Rust edition 2024 as specified in `Cargo.toml`.
 
 ## HTTP Configuration System
 
 The codebase uses a centralized `HttpRequestConfig` struct for handling different website requirements:
 
-- **Default headers**: Defined as constants in `lib.rs` (Accept, Accept-Language, Connection, Content-Type)
+- **Default headers**: Defined as constants in `lib.rs`:
+  - `Accept`: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"
+  - `Accept-Language`: "ja,en-US;q=0.7,en;q=0.3"
+  - `Connection`: "keep-alive"
+  - `Content-Type`: "application/x-www-form-urlencoded"
+  - `User-Agent`: Defined by `ACCESS_UA` constant
 - **Character encoding**: Use `.with_shift_jis(true)` only when the target website specifically uses Shift_JIS encoding (check the HTML meta charset or test for garbled text)
-- **Custom headers**: Override defaults using methods like `.with_accept()`, `.with_accept_language()`
+- **Custom headers**: Override defaults using methods like `.with_accept()`, `.with_accept_language()`, `.with_connection()`, `.with_content_type()`
 
 ### Example Usage:
 ```rust
+// Basic configuration
+let config = HttpRequestConfig::new(HOST, GET_SOURCE);
+
+// With Shift_JIS encoding
 let config = HttpRequestConfig::new(HOST, GET_SOURCE)
-    .with_shift_jis(true)  // Only when target site uses Shift_JIS
-    .with_accept("custom/accept");
+    .with_shift_jis(true);
+
+// With custom headers
+let config = HttpRequestConfig::new(HOST, GET_SOURCE)
+    .with_accept("custom/accept")
+    .with_accept_language("ja-JP");
+
+// Fetch content using the configuration
+let body = get_source_with_config(&config)?;
 ```
 
 ## Parser Development Approach
