@@ -1,6 +1,7 @@
 use std::fs;
 use std::io::Write;
 use std::collections::HashMap;
+use std::sync::Mutex;
 use serde_json::Value;
 use chrono::{Local, NaiveTime, DateTime, Utc, Datelike, Timelike};
 use regex::Regex;
@@ -9,6 +10,14 @@ use reqwest::header::HeaderMap;
 use encoding_rs::SHIFT_JIS;
 
 pub mod parse;
+
+lazy_static::lazy_static! {
+    /// プロセス内HTTPレスポンスキャッシュ
+    ///
+    /// 同一プロセス内で同じURLへの複数回のリクエストを1回に削減します。
+    /// プロセス終了時に自動的にクリアされます。
+    static ref SOURCE_CACHE: Mutex<HashMap<String, String>> = Mutex::new(HashMap::new());
+}
 
 pub const ACCESS_UA: &str = "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:141.0) Gecko/20100101 Firefox/141.0 edbot v0.1.1(https://github.com/oageo/emergency-dispatch)";
 
@@ -69,22 +78,32 @@ impl HttpRequestConfig {
 }
 
 pub fn get_source_with_config(config: &HttpRequestConfig) -> Result<String, Box<dyn std::error::Error>> {
+    // キャッシュチェック
+    {
+        let cache = SOURCE_CACHE.lock().unwrap();
+        if let Some(cached) = cache.get(&config.url) {
+            println!("  [キャッシュ] {}", config.url);
+            return Ok(cached.clone());
+        }
+    }
+
+    // HTTPリクエスト処理
     let mut headers = HeaderMap::new();
     headers.insert(reqwest::header::HOST, config.host.parse()?);
     headers.insert(
-        reqwest::header::ACCEPT, 
+        reqwest::header::ACCEPT,
         config.accept.as_deref().unwrap_or(DEFAULT_ACCEPT).parse()?
     );
     headers.insert(
-        reqwest::header::ACCEPT_LANGUAGE, 
+        reqwest::header::ACCEPT_LANGUAGE,
         config.accept_language.as_deref().unwrap_or(DEFAULT_ACCEPT_LANGUAGE).parse()?
     );
     headers.insert(
-        reqwest::header::CONNECTION, 
+        reqwest::header::CONNECTION,
         config.connection.as_deref().unwrap_or(DEFAULT_CONNECTION).parse()?
     );
     headers.insert(
-        reqwest::header::CONTENT_TYPE, 
+        reqwest::header::CONTENT_TYPE,
         config.content_type.as_deref().unwrap_or(DEFAULT_CONTENT_TYPE).parse()?
     );
     headers.insert(reqwest::header::USER_AGENT, ACCESS_UA.parse()?);
@@ -93,18 +112,26 @@ pub fn get_source_with_config(config: &HttpRequestConfig) -> Result<String, Box<
         .default_headers(headers.clone())
         .build()?;
 
+    println!("  [新規取得] {}", config.url);
     let res = client.get(&config.url)
         .headers(headers)
         .send()?;
 
-    if config.use_shift_jis {
+    let body = if config.use_shift_jis {
         let body_bytes = res.bytes()?;
         let (body, _, _) = SHIFT_JIS.decode(&body_bytes);
-        Ok(body.into_owned())
+        body.into_owned()
     } else {
-        let body = res.text()?;
-        Ok(body)
+        res.text()?
+    };
+
+    // キャッシュに保存
+    {
+        let mut cache = SOURCE_CACHE.lock().unwrap();
+        cache.insert(config.url.clone(), body.clone());
     }
+
+    Ok(body)
 }
 
 pub fn to_half_width(s: &str) -> String {
@@ -435,4 +462,12 @@ fn load_previous_guid_mapping() -> HashMap<String, String> {
     }
 
     guid_mapping
+}
+
+/// キャッシュをクリアする
+pub fn clear_source_cache() {
+    let mut cache = SOURCE_CACHE.lock().unwrap();
+    let count = cache.len();
+    cache.clear();
+    println!("ソースキャッシュをクリアしました（{}エントリ）", count);
 }
