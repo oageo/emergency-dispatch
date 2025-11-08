@@ -82,34 +82,75 @@ The system supports multiple Japanese municipalities across various prefectures,
 
 **Note**: Minor discrepancies between these counts may exist due to manual updates or development in progress. This is normal and should not be a cause for concern.
 
+## Municipal Code Verification
+
+**CRITICAL**: Always verify the correct JIS X 0402 municipal code before implementing parsers.
+
+### Authoritative Data Sources
+
+1. **Primary Source** - JSON API (recommended):
+   - URL: `https://jmc.osumiakari.jp/joint_all.json`
+   - Contains comprehensive list of all Japanese municipalities with their official 6-digit codes
+   - Includes both basic municipalities (市区町村) and special entities (一部事務組合)
+   - Use this to verify codes before creating parsers
+
+2. **Alternative Source** - Web Interface:
+   - URL: `https://jmc.osumiakari.jp/all/`
+   - Human-readable format of the same data
+   - Useful for quick lookups and verification
+
+### Verification Process
+
+Before implementing a parser:
+1. Look up the municipality name in `https://jmc.osumiakari.jp/joint_all.json`
+2. Verify the 6-digit code matches what you plan to use
+3. For fire departments serving multiple municipalities (一部事務組合):
+   - Each constituent municipality gets its own parser file
+   - All parsers use the same source URL but filter for their specific municipality
+   - Each uses its own correct JIS X 0402 code
+
+**Example**: Osaka South Fire Union (大阪南消防組合) serves 8 municipalities:
+- Kashiwara (柏原市): 272213
+- Habikino (羽曳野市): 272230 (not 272221)
+- Fujiidera (藤井寺市): 272264 (not 272248)
+- Tondabayashi (富田林市): 272141 (not 272256)
+- Kawachinagano (河内長野市): 272167 (not 272264)
+- Taishi (太子町): 273813 (not 273635)
+- Kanan (河南町): 273821 (not 273643)
+- Chihayaakasaka (千早赤阪村): 273830 (not 273660)
+
 ## Adding New Municipalities
 
 To add support for a new municipality, follow these steps in order:
 
-1. **Create parser file**: `src/parse/parse_XXXXXX.rs` (where XXXXXX is the 6-digit municipal code)
+1. **Verify municipal code**:
+   - Check `https://jmc.osumiakari.jp/joint_all.json` for the correct 6-digit JIS X 0402 code
+   - Never assume or guess the code - always verify from the authoritative source
+
+2. **Create parser file**: `src/parse/parse_XXXXXX.rs` (where XXXXXX is the verified 6-digit municipal code)
    - Implement the `return_XXXXXX()` function that returns `Result<(), Box<dyn std::error::Error>>`
    - Follow existing parser patterns for consistency
    - Use `HttpRequestConfig` for HTTP requests
    - Output to `dist/XXXXXX.json` in the standard format
 
-2. **Add module declaration**: In `src/parse/mod.rs`, add:
+3. **Add module declaration**: In `src/parse/mod.rs`, add:
    ```rust
    pub mod parse_XXXXXX;
    ```
 
-3. **Add import statement**: At the top of `src/lib.rs`, add:
+4. **Add import statement**: At the top of `src/lib.rs`, add:
    ```rust
    use crate::parse::parse_XXXXXX::return_XXXXXX;
    ```
 
-4. **Add function call**: In the `get_all()` function in `src/lib.rs`, add:
+5. **Add function call**: In the `get_all()` function in `src/lib.rs`, add:
    ```rust
    return_XXXXXX()?;
    ```
 
-5. **Update README.md**: Add the municipality to the "対応市区町村" section with its name, fire department name, and 6-digit code
+6. **Update README.md**: Add the municipality to the "対応市区町村" section with its name, fire department name, and verified 6-digit code
 
-6. **Test the implementation**:
+7. **Test the implementation**:
    - Run `cargo check` to verify compilation
    - Run `cargo run` to execute all parsers including the new one
    - Verify `dist/XXXXXX.json` is created with correct format
