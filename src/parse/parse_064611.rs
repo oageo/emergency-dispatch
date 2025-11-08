@@ -12,8 +12,8 @@ fn getsource() -> Result<String, Box<dyn std::error::Error>> {
     get_source_with_config(&config)
 }
 
-pub fn return_063649() -> Result<(), Box<dyn std::error::Error>> {
-    println!("063649, 庄内町消防本部（酒田地区広域行政組合消防本部）");
+pub fn return_064611() -> Result<(), Box<dyn std::error::Error>> {
+    println!("064611, 遊佐町（酒田地区広域行政組合消防本部）");
     let body = getsource()?;
     let document = scraper::Html::parse_document(&body);
 
@@ -47,8 +47,8 @@ pub fn return_063649() -> Result<(), Box<dyn std::error::Error>> {
             let disaster_category = &cells[2]; // "防災ヘリ支援"
             let address = &cells[4]; // "庄内町立谷沢字玉川"
 
-            // 庄内町の災害のみをフィルタリング
-            if address.starts_with("庄内町") {
+            // 遊佐町の災害のみをフィルタリング
+            if address.starts_with("遊佐町") {
                 // 時刻を HH:MM 形式に変換
                 let time = time_str
                     .split_whitespace()
@@ -75,7 +75,7 @@ pub fn return_063649() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     let output = json!({
-        "jisx0402": "063649",
+        "jisx0402": "064611",
         "source": [
             {
                 "url": GET_SOURCE,
@@ -86,9 +86,9 @@ pub fn return_063649() -> Result<(), Box<dyn std::error::Error>> {
     });
 
     // JSONファイルに書き出し
-    let mut file = File::create("dist/063649.json")?;
+    let mut file = File::create("dist/064611.json")?;
     file.write_all(output.to_string().as_bytes())?;
     eprintln!("{:?}", output);
-    println!("JSONファイルが出力されました: 063649.json （庄内町消防本部（酒田地区広域行政組合消防本部））");
+    println!("JSONファイルが出力されました: 064611.json （遊佐町消防本部（酒田地区広域行政組合消防本部））");
     Ok(())
 }
