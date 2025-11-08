@@ -53,16 +53,13 @@ pub fn return_122327() -> Result<(), Box<dyn std::error::Error>> {
                                     format!("千葉県{}", address_part.trim())
                                 };
 
-                                let disaster_type_suffix = disaster_detail
+                                let disaster_type_detail = disaster_detail
                                     .split("が発生")
                                     .next()
                                     .unwrap_or("")
                                     .trim();
 
-                                let full_disaster_type = if disaster_type_suffix.is_empty() {
-                                    disaster_type_prefix.to_string()
-                                } else {
-                                    format!("{}-{}", disaster_type_prefix, disaster_type_suffix)
+                                let full_disaster_type = disaster_type_detail.to_string();
                                 };
 
                                 disaster_data.push(json!({

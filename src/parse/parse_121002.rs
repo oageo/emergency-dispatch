@@ -64,17 +64,14 @@ pub fn return_121002() -> Result<(), Box<dyn std::error::Error>> {
                                 };
 
                                 // 災害種別を抽出（"車両火災が発生しています。" -> "車両火災"）
-                                let disaster_type_suffix = disaster_detail
+                                let disaster_type_detail = disaster_detail
                                     .split("が発生")
                                     .next()
                                     .unwrap_or("")
                                     .trim();
 
-                                // 完全な災害種別（例: "火災-車両火災"）
-                                let full_disaster_type = if disaster_type_suffix.is_empty() {
-                                    disaster_type_prefix.to_string()
-                                } else {
-                                    format!("{}-{}", disaster_type_prefix, disaster_type_suffix)
+                                // 災害種別：詳細があればそれを使用、なければプレフィックスを使用
+                                let full_disaster_type = disaster_type_detail.to_string();
                                 };
 
                                 disaster_data.push(json!({
