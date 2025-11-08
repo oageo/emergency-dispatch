@@ -13,7 +13,7 @@ fn getsource() -> Result<String, Box<dyn std::error::Error>> {
 }
 
 pub fn return_272264() -> Result<(), Box<dyn std::error::Error>> {
-    println!("272264, 河内長野市（大阪南消防組合）");
+    println!("272264, 藤井寺市（大阪南消防組合）");
     let body = getsource()?;
     let document = scraper::Html::parse_document(&body);
     let selector = scraper::Selector::parse("ul").unwrap();
@@ -27,9 +27,9 @@ pub fn return_272264() -> Result<(), Box<dyn std::error::Error>> {
         for element in ul_element.select(&li_selector) {
             let text = element.text().collect::<String>().trim().to_string();
 
-            // 河内長野市の災害のみをフィルタリング
-            if text.contains("河内長野市") {
-                // テキストを解析: "11月6日14時49分ごろ、河内長野市野作町付近において、火災の通報により出動中です。"
+            // 藤井寺市の災害のみをフィルタリング
+            if text.contains("藤井寺市") {
+                // テキストを解析: "11月6日14時49分ごろ、藤井寺市野中２丁目付近において、救急車の応援の通報により出動中です。"
                 let parts: Vec<&str> = text.split("、").collect();
                 if parts.len() >= 3 {
                     // 時刻部分を抽出
@@ -82,6 +82,6 @@ pub fn return_272264() -> Result<(), Box<dyn std::error::Error>> {
     let mut file = File::create("dist/272264.json")?;
     file.write_all(output.to_string().as_bytes())?;
     eprintln!("{:?}", output);
-    println!("JSONファイルが出力されました: 272264.json （河内長野市）");
+    println!("JSONファイルが出力されました: 272264.json （藤井寺市）");
     Ok(())
 }

@@ -12,8 +12,8 @@ fn getsource() -> Result<String, Box<dyn std::error::Error>> {
     get_source_with_config(&config)
 }
 
-pub fn return_273635() -> Result<(), Box<dyn std::error::Error>> {
-    println!("273635, 太子町（大阪南消防組合）");
+pub fn return_273830() -> Result<(), Box<dyn std::error::Error>> {
+    println!("273830, 千早赤阪村（大阪南消防組合）");
     let body = getsource()?;
     let document = scraper::Html::parse_document(&body);
     let selector = scraper::Selector::parse("ul").unwrap();
@@ -27,9 +27,9 @@ pub fn return_273635() -> Result<(), Box<dyn std::error::Error>> {
         for element in ul_element.select(&li_selector) {
             let text = element.text().collect::<String>().trim().to_string();
 
-            // 太子町の災害のみをフィルタリング
-            if text.contains("太子町") {
-                // テキストを解析: "11月6日14時49分ごろ、太子町春日付近において、救急車の応援の通報により出動中です。"
+            // 千早赤阪村の災害のみをフィルタリング
+            if text.contains("千早赤阪村") {
+                // テキストを解析: "11月6日14時49分ごろ、千早赤阪村付近において、救急車の応援の通報により出動中です。"
                 let parts: Vec<&str> = text.split("、").collect();
                 if parts.len() >= 3 {
                     // 時刻部分を抽出
@@ -68,7 +68,7 @@ pub fn return_273635() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     let output = json!({
-        "jisx0402": "273635",
+        "jisx0402": "273830",
         "source": [
             {
                 "url": GET_SOURCE,
@@ -79,9 +79,9 @@ pub fn return_273635() -> Result<(), Box<dyn std::error::Error>> {
     });
 
     // JSONファイルに書き出し
-    let mut file = File::create("dist/273635.json")?;
+    let mut file = File::create("dist/273830.json")?;
     file.write_all(output.to_string().as_bytes())?;
     eprintln!("{:?}", output);
-    println!("JSONファイルが出力されました: 273635.json （太子町）");
+    println!("JSONファイルが出力されました: 273830.json （千早赤阪村）");
     Ok(())
 }
