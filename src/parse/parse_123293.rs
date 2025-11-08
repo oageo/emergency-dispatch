@@ -60,7 +60,6 @@ pub fn return_123293() -> Result<(), Box<dyn std::error::Error>> {
                                     .trim();
 
                                 let full_disaster_type = disaster_type_detail.to_string();
-                                };
 
                                 disaster_data.push(json!({
                                     "type": full_disaster_type,

@@ -72,7 +72,6 @@ pub fn return_121002() -> Result<(), Box<dyn std::error::Error>> {
 
                                 // 災害種別：詳細があればそれを使用、なければプレフィックスを使用
                                 let full_disaster_type = disaster_type_detail.to_string();
-                                };
 
                                 disaster_data.push(json!({
                                     "type": full_disaster_type,
