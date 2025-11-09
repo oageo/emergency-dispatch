@@ -51,11 +51,11 @@ pub fn return_344311() -> Result<(), Box<dyn std::error::Error>> {
                     .unwrap_or("")
                     .to_string();
 
-                // 災害種別と災害区分を結合
-                let full_disaster_type = if disaster_category.is_empty() {
-                    disaster_type.to_string()
+                // 災害区分があればそれを使用、なければ災害種別を使用
+                let full_disaster_type = if !disaster_category.is_empty() {
+                    disaster_category.to_string()
                 } else {
-                    format!("{}-{}", disaster_type, disaster_category)
+                    disaster_type.to_string()
                 };
 
                 // 場所に「広島県」が含まれていない場合は追加

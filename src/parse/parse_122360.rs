@@ -25,8 +25,7 @@ pub fn return_122360() -> Result<(), Box<dyn std::error::Error>> {
         let text = to_half_width(&text);
 
         if text.contains("情報") {
-            if let Some((type_part, rest)) = text.split_once("情報") {
-                let disaster_type_prefix = type_part.trim();
+            if let Some((_type_part, rest)) = text.split_once("情報") {
 
                 if let Some(date_location) = rest.split_once("頃、") {
                     let date_time_str = date_location.0.trim();

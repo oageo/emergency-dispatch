@@ -29,8 +29,7 @@ pub fn return_121002() -> Result<(), Box<dyn std::error::Error>> {
         // "情報" で災害種別を判定
         if text.contains("情報") {
             // フォーマット: "火災情報 2025年11月08日23時48分頃、千葉市中央区出洲港７番　サンクタス千葉シーサイドアベニュー付近で車両火災が発生しています。"
-            if let Some((type_part, rest)) = text.split_once("情報") {
-                let disaster_type_prefix = type_part.trim();
+            if let Some((_type_part, rest)) = text.split_once("情報") {
 
                 // 日時と場所情報を分離
                 if let Some(date_location) = rest.split_once("頃、") {
@@ -70,7 +69,7 @@ pub fn return_121002() -> Result<(), Box<dyn std::error::Error>> {
                                     .unwrap_or("")
                                     .trim();
 
-                                // 災害種別：詳細があればそれを使用、なければプレフィックスを使用
+                                // 災害種別として使用
                                 let full_disaster_type = disaster_type_detail.to_string();
 
                                 disaster_data.push(json!({
