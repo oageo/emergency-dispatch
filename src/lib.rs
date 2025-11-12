@@ -113,9 +113,15 @@ pub fn get_source_with_config(config: &HttpRequestConfig) -> Result<String, Box<
         .build()?;
 
     println!("  [新規取得] {}", config.url);
-    let res = client.get(&config.url)
+    let res = match client.get(&config.url)
         .headers(headers)
-        .send()?;
+        .send() {
+            Ok(response) => response,
+            Err(e) => {
+                eprintln!("  [取得失敗] {}: {}", config.url, e);
+                return Err(Box::new(e));
+            }
+        };
 
     let body = if config.use_shift_jis {
         let body_bytes = res.bytes()?;
@@ -239,91 +245,113 @@ use crate::parse::parse_401005::return_401005;
 use crate::parse::parse_401307::return_401307;
 
 pub fn get_all() -> Result<(), Box<dyn std::error::Error>> {
-    return_011002()?;
-    return_012025()?;
-    return_012131()?;
-    return_012173()?;
-    return_012246()?;
-    return_012319()?;
-    return_012343()?;
-    return_022098()?;
-    return_062049()?;
-    return_062103()?;
-    return_064289()?;
-    return_064611()?;
-    return_082031()?;
-    return_083020()?;
-    return_121002()?;
-    return_122025()?;
-    return_122033()?;
-    return_122050()?;
-    return_122068()?;
-    return_122106()?;
-    return_122114()?;
-    return_122122()?;
-    return_122131()?;
-    return_122157()?;
-    return_122173()?;
-    return_122181()?;
-    return_122190()?;
-    return_122238()?;
-    return_122254()?;
-    return_122262()?;
-    return_122289()?;
-    return_122297()?;
-    return_122301()?;
-    return_122319()?;
-    return_122327()?;
-    return_122335()?;
-    return_122343()?;
-    return_122351()?;
-    return_122360()?;
-    return_122378()?;
-    return_122386()?;
-    return_122394()?;
-    return_123013()?;
-    return_123293()?;
-    return_123421()?;
-    return_123471()?;
-    return_123498()?;
-    return_124036()?;
-    return_124095()?;
-    return_124109()?;
-    return_124214()?;
-    return_124222()?;
-    return_124231()?;
-    return_124249()?;
-    return_124265()?;
-    return_124273()?;
-    return_124419()?;
-    return_124435()?;
-    return_124630()?;
-    return_141003()?;
-    return_142018()?;
-    return_142107()?;
-    return_151009()?;
-    return_152021()?;
-    return_172031()?;
-    return_231002()?;
-    return_232068()?;
-    return_261009()?;
-    return_272141()?;
-    return_272167()?;
-    return_272213()?;
-    return_272230()?;
-    return_272264()?;
-    return_273813()?;
-    return_273821()?;
-    return_273830()?;
-    return_282189()?;
-    return_292010()?;
-    return_292095()?;
-    return_322016()?;
-    return_342033()?;
-    return_342122()?;
-    return_344311()?;
-    return_401005()?;
-    return_401307()?;
+    let mut error_count = 0;
+    
+    // マクロで各返却関数を呼び出し、エラーをハンドル
+    macro_rules! call_parser {
+        ($func:expr) => {
+            if let Err(e) = $func {
+                eprintln!("⚠️  処理に失敗しました（継続します）: {}", e);
+                error_count += 1;
+            }
+        };
+    }
+
+    call_parser!(return_011002());
+    call_parser!(return_012025());
+    call_parser!(return_012131());
+    call_parser!(return_012173());
+    call_parser!(return_012246());
+    call_parser!(return_012319());
+    call_parser!(return_012343());
+    call_parser!(return_022098());
+    call_parser!(return_062049());
+    call_parser!(return_062103());
+    call_parser!(return_064289());
+    call_parser!(return_064611());
+    call_parser!(return_082031());
+    call_parser!(return_083020());
+    call_parser!(return_121002());
+    call_parser!(return_122025());
+    call_parser!(return_122033());
+    call_parser!(return_122050());
+    call_parser!(return_122068());
+    call_parser!(return_122106());
+    call_parser!(return_122114());
+    call_parser!(return_122122());
+    call_parser!(return_122131());
+    call_parser!(return_122157());
+    call_parser!(return_122173());
+    call_parser!(return_122181());
+    call_parser!(return_122190());
+    call_parser!(return_122238());
+    call_parser!(return_122254());
+    call_parser!(return_122262());
+    call_parser!(return_122289());
+    call_parser!(return_122297());
+    call_parser!(return_122301());
+    call_parser!(return_122319());
+    call_parser!(return_122327());
+    call_parser!(return_122335());
+    call_parser!(return_122343());
+    call_parser!(return_122351());
+    call_parser!(return_122360());
+    call_parser!(return_122378());
+    call_parser!(return_122386());
+    call_parser!(return_122394());
+    call_parser!(return_123013());
+    call_parser!(return_123293());
+    call_parser!(return_123421());
+    call_parser!(return_123471());
+    call_parser!(return_123498());
+    call_parser!(return_124036());
+    call_parser!(return_124095());
+    call_parser!(return_124109());
+    call_parser!(return_124214());
+    call_parser!(return_124222());
+    call_parser!(return_124231());
+    call_parser!(return_124249());
+    call_parser!(return_124265());
+    call_parser!(return_124273());
+    call_parser!(return_124419());
+    call_parser!(return_124435());
+    call_parser!(return_124630());
+    call_parser!(return_141003());
+    call_parser!(return_142018());
+    call_parser!(return_142107());
+    call_parser!(return_151009());
+    call_parser!(return_152021());
+    call_parser!(return_172031());
+    call_parser!(return_231002());
+    call_parser!(return_232068());
+    call_parser!(return_261009());
+    call_parser!(return_272141());
+    call_parser!(return_272167());
+    call_parser!(return_272213());
+    call_parser!(return_272230());
+    call_parser!(return_272264());
+    call_parser!(return_273813());
+    call_parser!(return_273821());
+    call_parser!(return_273830());
+    call_parser!(return_282189());
+    call_parser!(return_292010());
+    call_parser!(return_292095());
+    call_parser!(return_322016());
+    call_parser!(return_342033());
+    call_parser!(return_342122());
+    call_parser!(return_344311());
+    call_parser!(return_401005());
+    call_parser!(return_401307());
+    
+    // すべてのパーサーが失敗した場合はエラーを返す
+    if error_count > 0 {
+        eprintln!("\n合計 {} 件のパーサーが失敗しました", error_count);
+        if error_count == 79 {
+            // 79はすべてのパーサー数（error_count がこの値の場合、全て失敗）
+            return Err("すべてのパーサーが失敗しました".into());
+        }
+    }
+    
     Ok(())
 }
 
