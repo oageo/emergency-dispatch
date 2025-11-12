@@ -251,7 +251,7 @@ pub fn get_all() -> Result<(), Box<dyn std::error::Error>> {
     macro_rules! call_parser {
         ($func:expr) => {
             if let Err(e) = $func {
-                eprintln!("⚠️  処理に失敗しました（継続します）: {}", e);
+                eprintln!("取得失敗: {}", e);
                 error_count += 1;
             }
         };
