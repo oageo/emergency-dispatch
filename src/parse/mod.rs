@@ -18,6 +18,7 @@ pub mod parse_082147;
 pub mod parse_082155;
 pub mod parse_082163;
 pub mod parse_082171;
+pub mod parse_082252;
 pub mod parse_083020;
 pub mod parse_121002;
 pub mod parse_122025;
