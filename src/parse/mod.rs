@@ -10,6 +10,7 @@ pub mod parse_062049;
 pub mod parse_062103;
 pub mod parse_064289;
 pub mod parse_064611;
+pub mod parse_082015;
 pub mod parse_082031;
 pub mod parse_083020;
 pub mod parse_121002;
