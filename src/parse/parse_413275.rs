@@ -49,9 +49,9 @@ pub fn return_413275() -> Result<(), Box<dyn std::error::Error>> {
                         .trim()
                         .to_string();
 
-                    // 住所を抽出（吉野ヶ里町名を追加、神埼郡を含める）
+                    // 住所を抽出（吉野ヶ里町名を追加、を含める）
                     let address = address_part.trim();
-                    let full_address = format!("佐賀県神埼郡吉野ヶ里町{}", address);
+                    let full_address = format!("佐賀県吉野ヶ里町{}", address);
 
                     // 災害種別を抽出
                     let disaster_type = disaster_info
