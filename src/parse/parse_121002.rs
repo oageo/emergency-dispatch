@@ -26,8 +26,8 @@ pub fn return_121002() -> Result<(), Box<dyn std::error::Error>> {
         // 全角数字を半角数字に変換
         let text = to_half_width(&text);
 
-        // "情報" で災害種別を判定
-        if text.contains("情報") {
+        // "情報" で災害種別を判定（誤報を除外）
+        if text.contains("情報") && !text.contains("ではありません") {
             // フォーマット: "火災情報 2025年11月08日23時48分頃、千葉市中央区出洲港７番　サンクタス千葉シーサイドアベニュー付近で車両火災が発生しています。"
             if let Some((_type_part, rest)) = text.split_once("情報") {
 

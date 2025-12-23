@@ -24,7 +24,7 @@ pub fn return_122025() -> Result<(), Box<dyn std::error::Error>> {
         let text = element.text().collect::<String>();
         let text = to_half_width(&text);
 
-        if text.contains("情報") {
+        if text.contains("情報") && !text.contains("ではありません") {
             if let Some((_type_part, rest)) = text.split_once("情報") {
 
                 if let Some(date_location) = rest.split_once("頃、") {

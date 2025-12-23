@@ -26,8 +26,8 @@ pub fn return_122190() -> Result<(), Box<dyn std::error::Error>> {
             .replace(' ', "")
             .trim()
             .to_string();
-        // 「必ず火の元の点検をしましょう」が含まれている場合はスキップ
-        if text.contains("必ず火の元の点検をしましょう") {
+        // 「必ず火の元の点検をしましょう」や誤報が含まれている場合はスキップ
+        if text.contains("必ず火の元の点検をしましょう") || text.contains("ではありません") {
             continue;
         }
         else if let Some((before, after)) = text.split_once("頃、市原市") {
