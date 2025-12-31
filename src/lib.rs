@@ -172,6 +172,7 @@ use crate::parse::parse_064289::return_064289;
 use crate::parse::parse_064611::return_064611;
 use crate::parse::parse_082031::return_082031;
 use crate::parse::parse_083020::return_083020;
+use crate::parse::parse_092011::return_092011;
 use crate::parse::parse_112089::return_112089;
 use crate::parse::parse_112097::return_112097;
 use crate::parse::parse_112151::return_112151;
@@ -283,6 +284,7 @@ pub fn get_all() -> Result<(), Box<dyn std::error::Error>> {
     call_parser!(return_064611());
     call_parser!(return_082031());
     call_parser!(return_083020());
+    call_parser!(return_092011());
     call_parser!(return_112089());
     call_parser!(return_112097());
     call_parser!(return_112151());
@@ -370,8 +372,8 @@ pub fn get_all() -> Result<(), Box<dyn std::error::Error>> {
     // すべてのパーサーが失敗した場合はエラーを返す
     if error_count > 0 {
         eprintln!("\n合計 {} 件のパーサーが失敗しました", error_count);
-        if error_count == 86 {
-            // 86はすべてのパーサー数（error_count がこの値の場合、全て失敗）
+        if error_count == 87 {
+            // 87はすべてのパーサー数（error_count がこの値の場合、全て失敗）
             return Err("すべてのパーサーが失敗しました".into());
         }
     }
