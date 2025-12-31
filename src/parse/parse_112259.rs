@@ -30,8 +30,8 @@ pub fn return_112259() -> Result<(), Box<dyn std::error::Error>> {
             .trim()
             .to_string();
 
-        // 「発生しておりません」が含まれている場合は処理を中断
-        if text.contains("発生しておりません") {
+        // 「発生しておりません」または「終了」が含まれている場合は処理を中断
+        if text.contains("発生しておりません") || text.contains("終了") {
             continue;
         }
 
