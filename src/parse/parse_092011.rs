@@ -7,7 +7,7 @@ use crate::to_half_width;
 use super::super::{get_source_with_config, HttpRequestConfig};
 
 const HOST: &str = "utsunomiya.mwjp.jp";
-const LIST_URL: &str = "https://utsunomiya.mwjp.jp/mobile/index.cgi?page=119&";
+const LIST_URL: &str = "https://utsunomiya.mwjp.jp/mobile/index.cgi?page=119";
 
 pub fn return_092011() -> Result<(), Box<dyn std::error::Error>> {
     println!("092011, 宇都宮市消防局");
