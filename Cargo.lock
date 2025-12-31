@@ -211,7 +211,7 @@ checksum = "b2972feb8dffe7bc8c5463b1dacda1b0dfbed3710e50f977d965429692d74cd8"
 
 [[package]]
 name = "emergency_dispatch"
-version = "0.1.2"
+version = "0.2.0"
 dependencies = [
  "chrono",
  "encoding_rs",
