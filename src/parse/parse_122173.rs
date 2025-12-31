@@ -46,8 +46,8 @@ pub fn return_122173() -> Result<(), Box<dyn std::error::Error>> {
             .trim()
             .to_string();
 
-        // 「現在、管内で災害は発生しておりません」または「終了」が含まれている場合はスキップ
-        if text.contains("現在、管内で災害は発生しておりません") || text.contains("終了") {
+        // 「現在、管内で災害は発生しておりません」または「終了」、「鎮火」が含まれている場合はスキップ
+        if text.contains("現在、管内で災害は発生しておりません") || text.contains("終了") || text.contains("鎮火") {
             continue;
         }
         // データを解析
@@ -61,9 +61,17 @@ pub fn return_122173() -> Result<(), Box<dyn std::error::Error>> {
                 .trim()
                 .to_string();
 
-            if let (Some(start), Some(end)) = (addr.find('（'), addr.find('）')) {
-                if start < end {
-                    addr.replace_range(start..=end, "");
+            // 全角括弧を除去する安全な方法
+            if addr.contains('（') && addr.contains('）') {
+                let parts: Vec<&str> = addr.split('（').collect();
+                if parts.len() >= 2 {
+                    let before_bracket = parts[0];
+                    let after_parts: Vec<&str> = parts[1].split('）').collect();
+                    if after_parts.len() >= 2 {
+                        addr = format!("{}{}", before_bracket, after_parts[1]);
+                    } else {
+                        addr = before_bracket.to_string();
+                    }
                 }
             }
 

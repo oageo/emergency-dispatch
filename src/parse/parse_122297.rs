@@ -36,8 +36,13 @@ pub fn return_122297() -> Result<(), Box<dyn std::error::Error>> {
                 .replace("時", ":").replace("分", "");
 
             // 住所（「番」まで）
-            let location = if let Some(addr_end) = after.find("番") {
-                format!("袖ケ浦市{}番", &after[..addr_end])
+            let location = if after.contains("番") {
+                let parts: Vec<&str> = after.split("番").collect();
+                if !parts.is_empty() {
+                    format!("袖ケ浦市{}番", parts[0])
+                } else {
+                    format!("袖ケ浦市{}", after)
+                }
             } else {
                 format!("袖ケ浦市{}", after)
             };

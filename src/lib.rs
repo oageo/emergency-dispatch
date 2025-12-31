@@ -1,13 +1,23 @@
 use std::fs;
 use std::io::Write;
+use std::collections::HashMap;
+use std::sync::Mutex;
 use serde_json::Value;
-use chrono::{Local, NaiveTime, NaiveDate, DateTime, Utc};
+use chrono::{Local, NaiveTime, DateTime, Utc, Datelike, Timelike};
 use regex::Regex;
 use reqwest::blocking::Client;
 use reqwest::header::HeaderMap;
 use encoding_rs::SHIFT_JIS;
 
 pub mod parse;
+
+lazy_static::lazy_static! {
+    /// プロセス内HTTPレスポンスキャッシュ
+    ///
+    /// 同一プロセス内で同じURLへの複数回のリクエストを1回に削減します。
+    /// プロセス終了時に自動的にクリアされます。
+    static ref SOURCE_CACHE: Mutex<HashMap<String, String>> = Mutex::new(HashMap::new());
+}
 
 pub const ACCESS_UA: &str = "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:141.0) Gecko/20100101 Firefox/141.0 edbot v0.1.1(https://github.com/oageo/emergency-dispatch)";
 
@@ -68,22 +78,32 @@ impl HttpRequestConfig {
 }
 
 pub fn get_source_with_config(config: &HttpRequestConfig) -> Result<String, Box<dyn std::error::Error>> {
+    // キャッシュチェック
+    {
+        let cache = SOURCE_CACHE.lock().unwrap();
+        if let Some(cached) = cache.get(&config.url) {
+            println!("  [キャッシュ] {}", config.url);
+            return Ok(cached.clone());
+        }
+    }
+
+    // HTTPリクエスト処理
     let mut headers = HeaderMap::new();
     headers.insert(reqwest::header::HOST, config.host.parse()?);
     headers.insert(
-        reqwest::header::ACCEPT, 
+        reqwest::header::ACCEPT,
         config.accept.as_deref().unwrap_or(DEFAULT_ACCEPT).parse()?
     );
     headers.insert(
-        reqwest::header::ACCEPT_LANGUAGE, 
+        reqwest::header::ACCEPT_LANGUAGE,
         config.accept_language.as_deref().unwrap_or(DEFAULT_ACCEPT_LANGUAGE).parse()?
     );
     headers.insert(
-        reqwest::header::CONNECTION, 
+        reqwest::header::CONNECTION,
         config.connection.as_deref().unwrap_or(DEFAULT_CONNECTION).parse()?
     );
     headers.insert(
-        reqwest::header::CONTENT_TYPE, 
+        reqwest::header::CONTENT_TYPE,
         config.content_type.as_deref().unwrap_or(DEFAULT_CONTENT_TYPE).parse()?
     );
     headers.insert(reqwest::header::USER_AGENT, ACCESS_UA.parse()?);
@@ -92,18 +112,32 @@ pub fn get_source_with_config(config: &HttpRequestConfig) -> Result<String, Box<
         .default_headers(headers.clone())
         .build()?;
 
-    let res = client.get(&config.url)
+    println!("  [新規取得] {}", config.url);
+    let res = match client.get(&config.url)
         .headers(headers)
-        .send()?;
+        .send() {
+            Ok(response) => response,
+            Err(e) => {
+                eprintln!("  [取得失敗] {}: {}", config.url, e);
+                return Err(Box::new(e));
+            }
+        };
 
-    if config.use_shift_jis {
+    let body = if config.use_shift_jis {
         let body_bytes = res.bytes()?;
         let (body, _, _) = SHIFT_JIS.decode(&body_bytes);
-        Ok(body.into_owned())
+        body.into_owned()
     } else {
-        let body = res.text()?;
-        Ok(body)
+        res.text()?
+    };
+
+    // キャッシュに保存
+    {
+        let mut cache = SOURCE_CACHE.lock().unwrap();
+        cache.insert(config.url.clone(), body.clone());
     }
+
+    Ok(body)
 }
 
 pub fn to_half_width(s: &str) -> String {
@@ -126,42 +160,248 @@ pub fn to_half_width(s: &str) -> String {
 
 use crate::parse::parse_011002::return_011002;
 use crate::parse::parse_012025::return_012025;
+use crate::parse::parse_012131::return_012131;
+use crate::parse::parse_012173::return_012173;
+use crate::parse::parse_012246::return_012246;
+use crate::parse::parse_012319::return_012319;
+use crate::parse::parse_012343::return_012343;
 use crate::parse::parse_022098::return_022098;
+use crate::parse::parse_062049::return_062049;
 use crate::parse::parse_062103::return_062103;
+use crate::parse::parse_064289::return_064289;
+use crate::parse::parse_064611::return_064611;
+use crate::parse::parse_082031::return_082031;
 use crate::parse::parse_083020::return_083020;
+use crate::parse::parse_092011::return_092011;
+use crate::parse::parse_112089::return_112089;
+use crate::parse::parse_112097::return_112097;
+use crate::parse::parse_112127::return_112127;
+use crate::parse::parse_112151::return_112151;
+use crate::parse::parse_112259::return_112259;
+use crate::parse::parse_112399::return_112399;
+use crate::parse::parse_112411::return_112411;
+use crate::parse::parse_112429::return_112429;
+use crate::parse::parse_113263::return_113263;
+use crate::parse::parse_113271::return_113271;
+use crate::parse::parse_113417::return_113417;
+use crate::parse::parse_113425::return_113425;
+use crate::parse::parse_113433::return_113433;
+use crate::parse::parse_113476::return_113476;
+use crate::parse::parse_113484::return_113484;
+use crate::parse::parse_113492::return_113492;
+use crate::parse::parse_113697::return_113697;
+use crate::parse::parse_121002::return_121002;
+use crate::parse::parse_122025::return_122025;
 use crate::parse::parse_122033::return_122033;
+use crate::parse::parse_122050::return_122050;
+use crate::parse::parse_122068::return_122068;
+use crate::parse::parse_122106::return_122106;
+use crate::parse::parse_122114::return_122114;
+use crate::parse::parse_122122::return_122122;
+use crate::parse::parse_122131::return_122131;
+use crate::parse::parse_122157::return_122157;
 use crate::parse::parse_122173::return_122173;
+use crate::parse::parse_122181::return_122181;
 use crate::parse::parse_122190::return_122190;
+use crate::parse::parse_122238::return_122238;
+use crate::parse::parse_122254::return_122254;
+use crate::parse::parse_122262::return_122262;
+use crate::parse::parse_122289::return_122289;
 use crate::parse::parse_122297::return_122297;
+use crate::parse::parse_122301::return_122301;
+use crate::parse::parse_122319::return_122319;
+use crate::parse::parse_122327::return_122327;
+use crate::parse::parse_122335::return_122335;
+use crate::parse::parse_122343::return_122343;
+use crate::parse::parse_122351::return_122351;
+use crate::parse::parse_122360::return_122360;
+use crate::parse::parse_122378::return_122378;
+use crate::parse::parse_122386::return_122386;
+use crate::parse::parse_122394::return_122394;
+use crate::parse::parse_123013::return_123013;
+use crate::parse::parse_123293::return_123293;
+use crate::parse::parse_123421::return_123421;
+use crate::parse::parse_123471::return_123471;
+use crate::parse::parse_123498::return_123498;
+use crate::parse::parse_124036::return_124036;
+use crate::parse::parse_124095::return_124095;
+use crate::parse::parse_124109::return_124109;
+use crate::parse::parse_124214::return_124214;
+use crate::parse::parse_124222::return_124222;
+use crate::parse::parse_124231::return_124231;
+use crate::parse::parse_124249::return_124249;
+use crate::parse::parse_124265::return_124265;
+use crate::parse::parse_124273::return_124273;
+use crate::parse::parse_124419::return_124419;
+use crate::parse::parse_124435::return_124435;
+use crate::parse::parse_124630::return_124630;
+use crate::parse::parse_141003::return_141003;
+use crate::parse::parse_142018::return_142018;
+use crate::parse::parse_142107::return_142107;
 use crate::parse::parse_151009::return_151009;
 use crate::parse::parse_152021::return_152021;
 use crate::parse::parse_172031::return_172031;
+use crate::parse::parse_231002::return_231002;
+use crate::parse::parse_232068::return_232068;
 use crate::parse::parse_261009::return_261009;
+use crate::parse::parse_272141::return_272141;
+use crate::parse::parse_272167::return_272167;
+use crate::parse::parse_272213::return_272213;
+use crate::parse::parse_272230::return_272230;
+use crate::parse::parse_272264::return_272264;
+use crate::parse::parse_273813::return_273813;
+use crate::parse::parse_273821::return_273821;
+use crate::parse::parse_273830::return_273830;
 use crate::parse::parse_282189::return_282189;
+use crate::parse::parse_292010::return_292010;
 use crate::parse::parse_292095::return_292095;
 use crate::parse::parse_322016::return_322016;
+use crate::parse::parse_342033::return_342033;
+use crate::parse::parse_342122::return_342122;
+use crate::parse::parse_344311::return_344311;
 use crate::parse::parse_401005::return_401005;
 use crate::parse::parse_401307::return_401307;
+use crate::parse::parse_402231::return_402231;
+use crate::parse::parse_403458::return_403458;
+use crate::parse::parse_412015::return_412015;
+use crate::parse::parse_412040::return_412040;
+use crate::parse::parse_412082::return_412082;
+use crate::parse::parse_412104::return_412104;
+use crate::parse::parse_413275::return_413275;
 
 pub fn get_all() -> Result<(), Box<dyn std::error::Error>> {
-    return_011002()?; 
-    return_012025()?;
-    return_022098()?;
-    return_062103()?;
-    return_083020()?;
-    return_122033()?;
-    return_122173()?;
-    return_122190()?;
-    return_122297()?;
-    return_151009()?;
-    return_152021()?;
-    return_172031()?;
-    return_261009()?;
-    return_282189()?;
-    return_292095()?;
-    return_322016()?;
-    return_401005()?;
-    return_401307()?;
+    let mut error_count = 0;
+    
+    // マクロで各返却関数を呼び出し、エラーをハンドル
+    macro_rules! call_parser {
+        ($func:expr) => {
+            if let Err(e) = $func {
+                eprintln!("取得失敗: {}", e);
+                error_count += 1;
+            }
+        };
+    }
+
+    call_parser!(return_011002());
+    call_parser!(return_012025());
+    call_parser!(return_012131());
+    call_parser!(return_012173());
+    call_parser!(return_012246());
+    call_parser!(return_012319());
+    call_parser!(return_012343());
+    call_parser!(return_022098());
+    call_parser!(return_062049());
+    call_parser!(return_062103());
+    call_parser!(return_064289());
+    call_parser!(return_064611());
+    call_parser!(return_082031());
+    call_parser!(return_083020());
+    call_parser!(return_092011());
+    call_parser!(return_112089());
+    call_parser!(return_112097());
+    call_parser!(return_112127());
+    call_parser!(return_112151());
+    call_parser!(return_112259());
+    call_parser!(return_112399());
+    call_parser!(return_112411());
+    call_parser!(return_112429());
+    call_parser!(return_113263());
+    call_parser!(return_113271());
+    call_parser!(return_113417());
+    call_parser!(return_113425());
+    call_parser!(return_113433());
+    call_parser!(return_113476());
+    call_parser!(return_113484());
+    call_parser!(return_113492());
+    call_parser!(return_113697());
+    call_parser!(return_121002());
+    call_parser!(return_122025());
+    call_parser!(return_122033());
+    call_parser!(return_122050());
+    call_parser!(return_122068());
+    call_parser!(return_122106());
+    call_parser!(return_122114());
+    call_parser!(return_122122());
+    call_parser!(return_122131());
+    call_parser!(return_122157());
+    call_parser!(return_122173());
+    call_parser!(return_122181());
+    call_parser!(return_122190());
+    call_parser!(return_122238());
+    call_parser!(return_122254());
+    call_parser!(return_122262());
+    call_parser!(return_122289());
+    call_parser!(return_122297());
+    call_parser!(return_122301());
+    call_parser!(return_122319());
+    call_parser!(return_122327());
+    call_parser!(return_122335());
+    call_parser!(return_122343());
+    call_parser!(return_122351());
+    call_parser!(return_122360());
+    call_parser!(return_122378());
+    call_parser!(return_122386());
+    call_parser!(return_122394());
+    call_parser!(return_123013());
+    call_parser!(return_123293());
+    call_parser!(return_123421());
+    call_parser!(return_123471());
+    call_parser!(return_123498());
+    call_parser!(return_124036());
+    call_parser!(return_124095());
+    call_parser!(return_124109());
+    call_parser!(return_124214());
+    call_parser!(return_124222());
+    call_parser!(return_124231());
+    call_parser!(return_124249());
+    call_parser!(return_124265());
+    call_parser!(return_124273());
+    call_parser!(return_124419());
+    call_parser!(return_124435());
+    call_parser!(return_124630());
+    call_parser!(return_141003());
+    call_parser!(return_142018());
+    call_parser!(return_142107());
+    call_parser!(return_151009());
+    call_parser!(return_152021());
+    call_parser!(return_172031());
+    call_parser!(return_231002());
+    call_parser!(return_232068());
+    call_parser!(return_261009());
+    call_parser!(return_272141());
+    call_parser!(return_272167());
+    call_parser!(return_272213());
+    call_parser!(return_272230());
+    call_parser!(return_272264());
+    call_parser!(return_273813());
+    call_parser!(return_273821());
+    call_parser!(return_273830());
+    call_parser!(return_282189());
+    call_parser!(return_292010());
+    call_parser!(return_292095());
+    call_parser!(return_322016());
+    call_parser!(return_342033());
+    call_parser!(return_342122());
+    call_parser!(return_344311());
+    call_parser!(return_401005());
+    call_parser!(return_401307());
+    call_parser!(return_402231());
+    call_parser!(return_403458());
+    call_parser!(return_412015());
+    call_parser!(return_412040());
+    call_parser!(return_412082());
+    call_parser!(return_412104());
+    call_parser!(return_413275());
+
+    // すべてのパーサーが失敗した場合はエラーを返す
+    if error_count > 0 {
+        eprintln!("\n合計 {} 件のパーサーが失敗しました", error_count);
+        if error_count == 87 {
+            // 87はすべてのパーサー数（error_count がこの値の場合、全て失敗）
+            return Err("すべてのパーサーが失敗しました".into());
+        }
+    }
+    
     Ok(())
 }
 
@@ -206,6 +446,9 @@ pub fn generate_rss_feed() -> Result<(), Box<dyn std::error::Error>> {
     let mut all_disasters = vec![];
     let files = get_all_json().expect("RSSフィードの生成中に、JSONファイルの取得に失敗しました");
 
+    // 前回のguidマッピングを読み込み
+    let previous_guid_mapping = load_previous_guid_mapping();
+
     // 現在の日時を取得
     let now = Local::now();
 
@@ -214,7 +457,11 @@ pub fn generate_rss_feed() -> Result<(), Box<dyn std::error::Error>> {
         let data = fs::read_to_string(&file)?;
         let json: Value = serde_json::from_str(&data)?;
 
-        if let (Some(source), Some(disasters)) = (json["source"].as_array(), json["disasters"].as_array()) {
+        if let (Some(source), Some(disasters), Some(jisx0402)) = (
+            json["source"].as_array(),
+            json["disasters"].as_array(),
+            json["jisx0402"].as_str()
+        ) {
             if let (Some(source_name), Some(source_url)) = (
                 source.get(0).and_then(|s| s["name"].as_str()),
                 source.get(0).and_then(|s| s["url"].as_str()),
@@ -236,8 +483,26 @@ pub fn generate_rss_feed() -> Result<(), Box<dyn std::error::Error>> {
 
                             // 実行時刻と比較して10分以上未来の場合、1日前の日付を設定
                             if disaster_datetime > now_naive + chrono::Duration::minutes(10) {
-                                disaster_date = disaster_date.pred(); // 1日前の日付に変更
+                                disaster_date = disaster_date.pred_opt().unwrap_or(disaster_date); // 1日前の日付に変更
                             }
+
+                            // 災害の本質（時間以外の情報）をキーとする
+                            let disaster_essence = format!("{}-{}", address, disaster_type);
+
+                            // 同一本質の災害には同じguidを使用、新規なら新しいguidを生成
+                            let guid = if let Some(existing_guid) = previous_guid_mapping.get(&disaster_essence) {
+                                existing_guid.clone() // 同一本質なら前回guidを再利用
+                            } else {
+                                // 新規災害なら新しいguidを生成（既存機構）
+                                format!("{}{:02}{:02}{:02}{:02}-{}",
+                                    disaster_date.year(),
+                                    disaster_date.month(),
+                                    disaster_date.day(),
+                                    parsed_time.hour(),
+                                    parsed_time.minute(),
+                                    jisx0402
+                                )
+                            };
 
                             let iso8601_time = format!("{}T{}", disaster_date, parsed_time);
                             all_disasters.push((
@@ -245,6 +510,8 @@ pub fn generate_rss_feed() -> Result<(), Box<dyn std::error::Error>> {
                                 format!("{}（{}）", disaster_type, source_name), // タイトルに「disaster_type（source.name）」を表示
                                 address.to_string(),
                                 source_url.to_string(), // ソースURLを含める
+                                jisx0402.to_string(),
+                                guid,
                             ));
                         }
                     }
@@ -254,9 +521,23 @@ pub fn generate_rss_feed() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     // 時間順にソート
-    all_disasters.sort_by_key(|(time, _, _, _)| {
+    all_disasters.sort_by_key(|(time, _, _, _, _, _)| {
         DateTime::parse_from_rfc3339(time).unwrap_or_else(|_| Utc::now().into())
     });
+
+    // 重複するguidを解決（シーケンス番号を付与）
+    use std::collections::HashMap;
+    let mut guid_counts: HashMap<String, i32> = HashMap::new();
+
+    for disaster in &mut all_disasters {
+        let base_guid = disaster.5.clone(); // guidは6番目の要素
+        let count = guid_counts.entry(base_guid.clone()).or_insert(0);
+        *count += 1;
+
+        if *count > 1 {
+            disaster.5 = format!("{}-{:02}", base_guid, *count - 1);
+        }
+    }
 
     // RSSフィードを生成
     let mut rss_feed = String::from(r#"<?xml version="1.0" encoding="UTF-8"?>"#);
@@ -268,12 +549,13 @@ pub fn generate_rss_feed() -> Result<(), Box<dyn std::error::Error>> {
     rss_feed.push_str("<generator>emergency-dispatch</generator>");
     rss_feed.push_str("<language>ja</language>");
 
-    for (time, title, address, source_url) in all_disasters {
+    for (time, title, address, source_url, _jisx0402, guid) in all_disasters {
         rss_feed.push_str("<item>");
         rss_feed.push_str(&format!("<title>{}</title>", title));
         rss_feed.push_str(&format!("<description>{}</description>", address));
         rss_feed.push_str(&format!("<link>{}</link>", source_url)); // ソースURLを含める
         rss_feed.push_str(&format!("<pubDate>{}</pubDate>", time));
+        rss_feed.push_str(&format!("<guid isPermaLink=\"false\">{}</guid>", guid));
         rss_feed.push_str("</item>");
     }
 
@@ -323,4 +605,63 @@ pub fn generate_all_json() -> Result<(), Box<dyn std::error::Error>> {
 
     println!("統合災害情報ファイルが生成されました: dist/all.json");
     Ok(())
+}
+
+/// 前回のRSSフィードから災害本質とguidのマッピングを読み込む関数
+fn load_previous_guid_mapping() -> HashMap<String, String> {
+    let mut guid_mapping = HashMap::new();
+
+    if let Ok(rss_content) = fs::read_to_string("dist/all_feed.xml") {
+        // 簡単なXML解析でdescription（住所）、title（災害種別）、guidを抽出
+        let lines: Vec<&str> = rss_content.lines().collect();
+        let mut i = 0;
+
+        while i < lines.len() {
+            if lines[i].trim().starts_with("<item>") {
+                let mut title = "";
+                let mut description = "";
+                let mut guid = "";
+                let mut j = i + 1;
+
+                while j < lines.len() && !lines[j].trim().starts_with("</item>") {
+                    let line = lines[j].trim();
+                    if line.starts_with("<title>") {
+                        title = line.trim_start_matches("<title>").trim_end_matches("</title>");
+                    } else if line.starts_with("<description>") {
+                        description = line.trim_start_matches("<description>").trim_end_matches("</description>");
+                    } else if line.starts_with("<guid ") {
+                        // <guid isPermaLink="false">GUID値</guid> から GUID値 を抽出
+                        if let Some(start) = line.find('>') {
+                            if let Some(end) = line.find("</guid>") {
+                                guid = &line[start + 1..end];
+                            }
+                        }
+                    }
+                    j += 1;
+                }
+
+                if !title.is_empty() && !description.is_empty() && !guid.is_empty() {
+                    // titleから災害種別を抽出（「災害種別（消防局名）」形式）
+                    if let Some((disaster_type, _)) = title.split_once("（") {
+                        // 災害の本質（時間以外の情報）
+                        let disaster_essence = format!("{}-{}", description, disaster_type);
+                        guid_mapping.insert(disaster_essence, guid.to_string());
+                    }
+                }
+                i = j;
+            } else {
+                i += 1;
+            }
+        }
+    }
+
+    guid_mapping
+}
+
+/// キャッシュをクリアする
+pub fn clear_source_cache() {
+    let mut cache = SOURCE_CACHE.lock().unwrap();
+    let count = cache.len();
+    cache.clear();
+    println!("ソースキャッシュをクリアしました（{}エントリ）", count);
 }

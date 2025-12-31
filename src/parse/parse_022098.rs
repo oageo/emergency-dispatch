@@ -33,7 +33,7 @@ pub fn return_022098() -> Result<(), Box<dyn std::error::Error>> {
         else if cells.len() >= 5 {
             let time = cells[0].replace("/", "-").split_whitespace().nth(1).unwrap_or("").to_string();
             let disaster_type = cells[2].clone();
-            let address = format!("青森県つがる市{}", cells[4].replace("　", "").trim());
+            let address = format!("青森県{}", cells[4].replace("　", "").trim());
 
             disaster_data.push(json!({
                 "type": disaster_type,

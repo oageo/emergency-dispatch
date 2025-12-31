@@ -19,20 +19,30 @@ pub fn return_011002() -> Result<(), Box<dyn std::error::Error>> {
     let selector = scraper::Selector::parse("html body.format_free div#tmp_wrapper div#tmp_wrapper2 div#tmp_wrapper3 div#tmp_wrap_main.column_lnavi div#tmp_main div.wrap_col_main div.col_main div#tmp_contents").unwrap();
     let mut disaster_data = vec![];
     if let Some(element) = document.select(&selector).next() {
-        let text = element.text().collect::<Vec<_>>().join(" ");
-        if let Some(start) = text.find("現在の災害出動") {
-            if let Some(end) = text[start..].find("出動中の災害は以上です") {
-                let disaster_text = &text[start..start + end];
-                for line in disaster_text.split('●').skip(1) {
-                    let parts: Vec<&str> = line.split('・').collect();
-                    if parts.len() > 1 {
-                        let disaster_type = parts[0].trim().replace("出動", "");
-                        let location_time = parts[1].trim();
-                        if let Some((location, time)) = location_time.rsplit_once('（') {
-                            let time = time.trim_end_matches('）').replace("時", ":").replace("分", "");
+        let text = element.text().collect::<Vec<_>>().join("\n");
+        
+        // 札幌市の部分のみを抽出
+        if let Some(_) = text.find("〇札幌市") {
+            let after_sapporo = text.split("〇札幌市").nth(1).unwrap_or("");
+            // 札幌市の部分の終了点を見つける（江別市で終了）
+            let sapporo_text = after_sapporo.split("〇江別市").next().unwrap_or(after_sapporo);
+            
+            // 災害がない場合のチェック
+            if !sapporo_text.contains("現在出動中の災害はありません") {
+                // 出動種別（●で始まる行）を処理
+                let mut current_disaster_type = String::new();
+                for line in sapporo_text.lines() {
+                    let line = line.trim();
+                    if line.starts_with("●") {
+                        current_disaster_type = line.trim_start_matches('●').replace("出動", "").trim().to_string();
+                    } else if line.starts_with("・") && !current_disaster_type.is_empty() {
+                        // 出動場所の処理
+                        let location_time = line.trim_start_matches('・').trim();
+                        if let Some((location, time_part)) = location_time.rsplit_once('（') {
+                            let time = time_part.trim_end_matches('）').replace("時", ":").replace("分", "");
                             let address = format!("北海道札幌市{}", location.trim());
                             disaster_data.push(json!({
-                                "type": disaster_type,
+                                "type": current_disaster_type.clone(),
                                 "address": address,
                                 "time": time
                             }));

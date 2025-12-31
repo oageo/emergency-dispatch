@@ -26,8 +26,8 @@ pub fn return_122190() -> Result<(), Box<dyn std::error::Error>> {
             .replace(' ', "")
             .trim()
             .to_string();
-        // 「必ず火の元の点検をしましょう」が含まれている場合はスキップ
-        if text.contains("必ず火の元の点検をしましょう") {
+        // 「必ず火の元の点検をしましょう」や誤報が含まれている場合はスキップ
+        if text.contains("必ず火の元の点検をしましょう") || text.contains("ではありません") {
             continue;
         }
         else if let Some((before, after)) = text.split_once("頃、市原市") {
@@ -36,8 +36,13 @@ pub fn return_122190() -> Result<(), Box<dyn std::error::Error>> {
                 .replace("時", ":").replace("分", "");
 
             // 住所（「番」まで）
-            let location = if let Some(addr_end) = after.find("番") {
-                format!("市原市{}番", &after[..addr_end])
+            let location = if after.contains("番") {
+                let parts: Vec<&str> = after.split("番").collect();
+                if !parts.is_empty() {
+                    format!("市原市{}番", parts[0])
+                } else {
+                    format!("市原市{}", after)
+                }
             } else {
                 format!("市原市{}", after)
             };

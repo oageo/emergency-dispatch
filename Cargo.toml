@@ -1,11 +1,12 @@
 [package]
 name = "emergency_dispatch"
-version = "0.1.2"
+version = "0.2.0"
 edition = "2024"
 
 [dependencies]
 chrono = "0.4.40"
 encoding_rs = "0.8.35"
+lazy_static = "1.4"
 regex = "1.11.1"
 reqwest = { version = "0.12.15", features = ["blocking", "json"] }
 scraper = "0.23.1"
