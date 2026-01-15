@@ -1,6 +1,7 @@
 use serde_json::json;
 use std::fs::File;
 use std::io::Write;
+use crate::to_half_width;
 
 use super::super::{get_source_with_config, HttpRequestConfig};
 
@@ -25,9 +26,17 @@ pub fn return_012131() -> Result<(), Box<dyn std::error::Error>> {
     if let Some(span_element) = document.select(&selector).next() {
         let span_text = span_element.text().collect::<String>();
 
+        // 全角数字を半角数字に変換
+        let span_text = to_half_width(&span_text);
+
         // 各行をループ処理（複数の出動情報に対応）
         for line in span_text.lines() {
             let line = line.trim();
+
+            // 「現在、災害は発生していません。」が含まれている場合はスキップ
+            if line.contains("現在、災害は発生していません") {
+                continue;
+            }
 
             // "・"で始まる行を出動情報として処理
             if line.starts_with("・") {
