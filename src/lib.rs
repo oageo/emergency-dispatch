@@ -177,6 +177,7 @@ use crate::parse::parse_075221::return_075221;
 use crate::parse::parse_082031::return_082031;
 use crate::parse::parse_083020::return_083020;
 use crate::parse::parse_092011::return_092011;
+use crate::parse::parse_112038::return_112038;
 use crate::parse::parse_112089::return_112089;
 use crate::parse::parse_112097::return_112097;
 use crate::parse::parse_112127::return_112127;
@@ -311,6 +312,7 @@ pub fn get_all() -> Result<(), Box<dyn std::error::Error>> {
     call_parser!(return_082031());
     call_parser!(return_083020());
     call_parser!(return_092011());
+    call_parser!(return_112038());
     call_parser!(return_112089());
     call_parser!(return_112097());
     call_parser!(return_112127());
