@@ -40,8 +40,8 @@ pub fn return_153427() -> Result<(), Box<dyn std::error::Error>> {
             .trim()
             .to_string();
 
-        // 「（終了）」が含まれている場合は処理を中断
-        if text.contains("（終了）") {
+        // 「（終了）」または「鎮火」が含まれている場合は処理を中断
+        if text.contains("（終了）") || text.contains("鎮火") {
             continue;
         }
 
