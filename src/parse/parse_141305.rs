@@ -31,6 +31,7 @@ pub fn return_141305() -> Result<(), Box<dyn std::error::Error>> {
         // スキップ条件
         if text.contains("市内に災害は発生しておりません")
             || text.contains("完了しました")
+            || text.contains("終了しました")
             || text.contains("横浜市")
             || text.trim().is_empty() {
             continue;
