@@ -28,6 +28,9 @@ pub fn return_141305() -> Result<(), Box<dyn std::error::Error>> {
         // 全角数字を半角数字に変換
         let text = to_half_width(&text);
 
+        // 半角スペース・全角スペースを削除
+        let text = text.replace(" ", "").replace("　", "");
+
         // スキップ条件
         if text.contains("市内に災害は発生しておりません")
             || text.contains("完了しました")
@@ -82,11 +85,6 @@ pub fn return_141305() -> Result<(), Box<dyn std::error::Error>> {
             } else {
                 continue;
             };
-
-            // 住所からスペースを削除
-            let location = location
-                .replace(" ", "")
-                .replace("　", "");
 
             // 大田区・世田谷区の場合は東京都、それ以外は神奈川県川崎市
             let address = if location.contains("大田区") || location.contains("世田谷区") {
