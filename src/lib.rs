@@ -7,7 +7,7 @@ use chrono::{Local, NaiveTime, DateTime, Utc, Datelike, Timelike};
 use regex::Regex;
 use reqwest::blocking::Client;
 use reqwest::header::HeaderMap;
-use encoding_rs::SHIFT_JIS;
+use encoding_rs::{SHIFT_JIS, EUC_JP};
 
 pub mod parse;
 
@@ -36,6 +36,7 @@ pub struct HttpRequestConfig {
     pub connection: Option<String>,
     pub content_type: Option<String>,
     pub use_shift_jis: bool,
+    pub use_euc_jp: bool,
 }
 
 impl HttpRequestConfig {
@@ -48,11 +49,17 @@ impl HttpRequestConfig {
             connection: None,
             content_type: None,
             use_shift_jis: false,
+            use_euc_jp: false,
         }
     }
 
     pub fn with_shift_jis(mut self, use_shift_jis: bool) -> Self {
         self.use_shift_jis = use_shift_jis;
+        self
+    }
+
+    pub fn with_euc_jp(mut self, use_euc_jp: bool) -> Self {
+        self.use_euc_jp = use_euc_jp;
         self
     }
 
@@ -126,6 +133,10 @@ pub fn get_source_with_config(config: &HttpRequestConfig) -> Result<String, Box<
     let body = if config.use_shift_jis {
         let body_bytes = res.bytes()?;
         let (body, _, _) = SHIFT_JIS.decode(&body_bytes);
+        body.into_owned()
+    } else if config.use_euc_jp {
+        let body_bytes = res.bytes()?;
+        let (body, _, _) = EUC_JP.decode(&body_bytes);
         body.into_owned()
     } else {
         res.text()?
@@ -248,6 +259,7 @@ use crate::parse::parse_151009::return_151009;
 use crate::parse::parse_152021::return_152021;
 use crate::parse::parse_152137::return_152137;
 use crate::parse::parse_153427::return_153427;
+use crate::parse::parse_172014::return_172014;
 use crate::parse::parse_172031::return_172031;
 use crate::parse::parse_202029::return_202029;
 use crate::parse::parse_202151::return_202151;
@@ -392,6 +404,7 @@ pub fn get_all() -> Result<(), Box<dyn std::error::Error>> {
     call_parser!(return_152021());
     call_parser!(return_152137());
     call_parser!(return_153427());
+    call_parser!(return_172014());
     call_parser!(return_172031());
     call_parser!(return_202029());
     call_parser!(return_202151());
