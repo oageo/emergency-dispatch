@@ -93,6 +93,6 @@ pub fn return_204501() -> Result<(), Box<dyn std::error::Error>> {
     let mut file = File::create("dist/204501.json")?;
     file.write_all(output.to_string().as_bytes())?;
     eprintln!("{:?}", output);
-    println!("JSONファイルが出力されました: 204501.json （山形村）");
+    println!("JSONファイルが出力されました: 204501.json （山形村・松本広域消防局）");
     Ok(())
 }
