@@ -145,8 +145,9 @@ To add support for a new municipality, follow these steps in order:
 
 5. **Add function call**: In the `get_all()` function in `src/lib.rs`, add:
    ```rust
-   return_XXXXXX()?;
+   call_parser!(return_XXXXXX());
    ```
+   Note: `call_parser!` is a macro defined inside `get_all()` that catches errors without stopping the entire process. Do not use `return_XXXXXX()?;` directly.
 
 6. **Update README.md**: Add the municipality to the "対応市区町村" section with its name, fire department name, and verified 6-digit code
 
@@ -173,6 +174,7 @@ Key dependencies as defined in `Cargo.toml`:
 - **chrono** (0.4.40): Date and time handling for RSS feed generation
 - **regex** (1.11.1): Pattern matching for file operations
 - **encoding_rs** (0.8.35): Character encoding handling (primarily for Shift_JIS support)
+- **lazy_static** (1.4): Lazy initialization of static variables, used for `SOURCE_CACHE` (in-process HTTP response cache)
 
 **Note**: The project uses Rust edition 2024 as specified in `Cargo.toml`.
 
@@ -188,6 +190,7 @@ The codebase uses a centralized `HttpRequestConfig` struct for handling differen
   - `User-Agent`: Defined by `ACCESS_UA` constant
 - **Character encoding**: Use `.with_shift_jis(true)` only when the target website specifically uses Shift_JIS encoding (check the HTML meta charset or test for garbled text)
 - **Custom headers**: Override defaults using methods like `.with_accept()`, `.with_accept_language()`, `.with_connection()`, `.with_content_type()`
+- **In-process HTTP caching**: `SOURCE_CACHE` (a `lazy_static` `Mutex<HashMap>`) automatically caches responses by URL within a single process run. Multiple parsers sharing the same source URL (e.g., 松本広域消防局's 8 municipality parsers) will only trigger one actual HTTP request.
 
 ### Example Usage:
 ```rust
