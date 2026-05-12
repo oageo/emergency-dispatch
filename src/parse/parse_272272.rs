@@ -50,10 +50,12 @@ pub fn return_272272() -> Result<(), Box<dyn std::error::Error>> {
                 if let Some((address_part, type_part)) = rest.split_once("で") {
                     let address_raw = address_part.trim();
 
-                    // 住所からスペースを削除
-                    let address = address_raw
-                        .replace(" ", "")
-                        .replace("　", "");
+                    // 住所からスペースを削除し、先頭に「大阪府」を付与
+                    let address = format!("大阪府{}",
+                        address_raw
+                            .replace(" ", "")
+                            .replace("　", "")
+                    );
 
                     // 災害種別を抽出（「が発生し」以降を削除）
                     let disaster_type = if let Some((disaster, _)) = type_part.split_once("が発生し") {
@@ -62,8 +64,10 @@ pub fn return_272272() -> Result<(), Box<dyn std::error::Error>> {
                         type_part.trim().to_string()
                     };
 
-                    // 必要な情報がすべて揃っている場合のみ追加
-                    if !time.is_empty() && !address.is_empty() && !disaster_type.is_empty() {
+                    // 「鎮火」の場合はスキップ
+                    if disaster_type.contains("鎮火") {
+                        // 鎮火済みのためスキップ
+                    } else if !time.is_empty() && !address.is_empty() && !disaster_type.is_empty() {
                         disaster_data.push(json!({
                             "type": disaster_type,
                             "address": address,
