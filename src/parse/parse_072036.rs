@@ -52,7 +52,10 @@ pub fn return_072036() -> Result<(), Box<dyn std::error::Error>> {
                 "".to_string()
             };
 
-            // 災害種別と住所を「‐」で分割
+            // HTMLタグを除去してから「‐」で分割
+            let content_part = content_part
+                .replace("<p>", "")
+                .replace("</p>", "");
             if let Some((disaster_type, address_raw)) = content_part.split_once("‐") {
                 let disaster_type = disaster_type.trim().to_string();
                 let address_raw = address_raw
