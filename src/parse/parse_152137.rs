@@ -72,6 +72,9 @@ pub fn return_152137() -> Result<(), Box<dyn std::error::Error>> {
                             .split("のため消防車が出動しました")
                             .next()
                             .unwrap_or("")
+                            .split("が発生し")
+                            .next()
+                            .unwrap_or("")
                             .replace("。", "")
                             .trim()
                             .to_string();

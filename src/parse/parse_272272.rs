@@ -64,8 +64,8 @@ pub fn return_272272() -> Result<(), Box<dyn std::error::Error>> {
                         type_part.trim().to_string()
                     };
 
-                    // 「鎮火」の場合はスキップ
-                    if disaster_type.contains("鎮火") {
+                    // 「鎮火」「終了」の場合はスキップ
+                    if disaster_type.contains("鎮火") || disaster_type.contains("終了") {
                         // 鎮火済みのためスキップ
                     } else if !time.is_empty() && !address.is_empty() && !disaster_type.is_empty() {
                         disaster_data.push(json!({
