@@ -35,6 +35,7 @@ pub fn return_141305() -> Result<(), Box<dyn std::error::Error>> {
         if text.contains("市内に災害は発生しておりません")
             || text.contains("完了しました")
             || text.contains("終了しました")
+            || text.contains("鎮火")
             || text.contains("横浜市")
             || text.trim().is_empty() {
             continue;
