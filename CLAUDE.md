@@ -44,6 +44,12 @@ Each supported municipality has its own parser module in `src/parse/`:
 - **Function naming**: Each parser exports a `return_XXXXXX()` function
 - **Parser responsibility**: Fetch HTML from fire department website, parse disaster information, output to `dist/XXXXXX.json`
 
+Parsers fall into three shapes. Identify which one the target site needs before writing code:
+
+1. **Single page** (most parsers): fetch one URL, parse the current-dispatch section.
+2. **Two-step / recursive** (`parse_092011` 宇都宮市, `parse_092029` 足利市, `parse_112038` 川口市, `parse_352047` 萩市): the list page only has links, so each linked detail page must be fetched to get address/time/type. Filter on the list page first (skip 終了/鎮火 links, or require an "unread" marker like `img.new`) so you only fetch what you need.
+3. **Multi-source** (`parse_092029` 足利市): one municipality's information is split across several list URLs, all collected into one output. Note `generate_rss_feed()` uses only `source[0]` for the RSS title and link, so every entry in `source` should carry the plain department name — putting a category suffix in `name` leaks into RSS titles.
+
 ### Data Format
 
 All parsers output JSON files to the `dist/` directory with this structure:
@@ -72,15 +78,7 @@ All parsers use a common User-Agent string defined in `lib.rs` as `ACCESS_UA` th
 
 ### Supported Municipalities
 
-The system supports multiple Japanese municipalities across various prefectures, each identified by their 6-digit JIS X 0402 code. The complete list is maintained in the README and reflected in the parser modules.
-
-**To count the current number of supported municipalities**:
-- Check the "対応市区町村" section in README.md and count the entries with 6-digit codes
-- Use `grep -c "^    \* .*[0-9]\{6\}$" README.md` to count programmatically from README
-- Count parser files: `find src/parse -name "parse_*.rs" | wc -l` to count actual implementation files
-- Check `src/lib.rs` for import statements or function calls in `get_all()`
-
-**Note**: Minor discrepancies between these counts may exist due to manual updates or development in progress. This is normal and should not be a cause for concern.
+The complete list is maintained in the "対応市区町村" section of README.md, one entry per 6-digit JIS X 0402 code. To count implementations, use `find src/parse -name "parse_*.rs" | wc -l`. Small discrepancies against README are normal and not a cause for concern.
 
 ## Municipal Code Verification
 
@@ -166,17 +164,15 @@ To add support for a new municipality, follow these steps in order:
 
 ## Dependencies
 
-Key dependencies as defined in `Cargo.toml`:
+See `Cargo.toml` for versions (Rust edition 2024). What each is for:
 
-- **reqwest** (0.12.15 with blocking and json features): HTTP client for fetching web pages
-- **scraper** (0.23.1): HTML parsing and CSS selector support
-- **serde_json** (1.0.140): JSON serialization/deserialization
-- **chrono** (0.4.40): Date and time handling for RSS feed generation
-- **regex** (1.11.1): Pattern matching for file operations
-- **encoding_rs** (0.8.35): Character encoding handling (primarily for Shift_JIS support)
-- **lazy_static** (1.4): Lazy initialization of static variables, used for `SOURCE_CACHE` (in-process HTTP response cache)
-
-**Note**: The project uses Rust edition 2024 as specified in `Cargo.toml`.
+- **reqwest** (blocking, json): HTTP client for fetching web pages
+- **scraper**: HTML parsing and CSS selector support
+- **serde_json**: JSON serialization
+- **chrono**: date/time handling for RSS generation and recency filtering
+- **regex**: pattern matching for file operations
+- **encoding_rs**: character encoding (Shift_JIS and EUC-JP decoding)
+- **lazy_static**: used for `SOURCE_CACHE` (in-process HTTP response cache)
 
 ## HTTP Configuration System
 
@@ -188,7 +184,7 @@ The codebase uses a centralized `HttpRequestConfig` struct for handling differen
   - `Connection`: "keep-alive"
   - `Content-Type`: "application/x-www-form-urlencoded"
   - `User-Agent`: Defined by `ACCESS_UA` constant
-- **Character encoding**: Use `.with_shift_jis(true)` only when the target website specifically uses Shift_JIS encoding (check the HTML meta charset or test for garbled text)
+- **Character encoding**: Default is UTF-8. Use `.with_shift_jis(true)` or `.with_euc_jp(true)` only when the target site uses that encoding (check the HTML meta charset, or test for garbled text). Example: `parse_172014` 金沢市消防局 is EUC-JP.
 - **Custom headers**: Override defaults using methods like `.with_accept()`, `.with_accept_language()`, `.with_connection()`, `.with_content_type()`
 - **In-process HTTP caching**: `SOURCE_CACHE` (a `lazy_static` `Mutex<HashMap>`) automatically caches responses by URL within a single process run. Multiple parsers sharing the same source URL (e.g., 松本広域消防局's 8 municipality parsers) will only trigger one actual HTTP request.
 
@@ -197,7 +193,7 @@ The codebase uses a centralized `HttpRequestConfig` struct for handling differen
 // Basic configuration
 let config = HttpRequestConfig::new(HOST, GET_SOURCE);
 
-// With Shift_JIS encoding
+// With Shift_JIS (or .with_euc_jp(true) for EUC-JP) encoding
 let config = HttpRequestConfig::new(HOST, GET_SOURCE)
     .with_shift_jis(true);
 
@@ -215,16 +211,27 @@ let body = get_source_with_config(&config)?;
 When creating a new parser, follow this analysis process:
 
 1. **Compare with existing parsers**: Check if the target website shares patterns with existing municipalities
-2. **Identify HTML structure**: Look for common Japanese patterns like `◆現在の出動`, `出動情報`, `災害情報`
-3. **Test encoding**: Start with default (UTF-8), only add `.with_shift_jis(true)` if text appears garbled
-4. **Pattern matching**: Look for existing text processing patterns that might apply
+2. **Confirm the data is actually in the HTML**: If the target container is empty in the fetched HTML, the page is populating it with JavaScript. Read the page's `<script src>` files to find the URL it fetches and target that directly. Example: 福島市 (`parse_072010`) renders an empty `div.dispatch_info ul.list`; `theme/base/js/list_e_1001-2.js` Ajax-fetches `/section/syoubou-info/history.html`, which is what the parser requests.
+3. **Identify HTML structure**: Look for common Japanese patterns like `◆現在の出動`, `出動情報`, `災害情報`
+4. **Test encoding**: Start with default (UTF-8), only add `.with_shift_jis(true)` / `.with_euc_jp(true)` if text appears garbled
+5. **Decide how past information is excluded** (see below)
+
+### Excluding Past Information
+
+**CRITICAL**: Only currently-active dispatches belong in the output. Sites expose this differently, so pick the mechanism that matches the source:
+
+- **Separate current/past sections**: Take only the current one. 生駒市 (`parse_292095`) breaks at 「現在、火災等の災害は発生していません」; 高知市/土佐市 (`parse_392014`, `parse_392057`) select only the first `div.panel-body table`, since the second is 「過去の災害経過情報」.
+- **Resolution keywords in a mixed list**: Skip entries containing 鎮火 / 誤報 / 終了 (`parse_092029`, `parse_112038`, `parse_231002`).
+- **Undifferentiated history feed**: When the page is just a rolling log with no current/past distinction, filter by timestamp — keep only the last 24 hours (`parse_072010` 福島市, `parse_082031` 土浦市, `parse_231002` 名古屋市). Where the source omits the year, infer it from the current date and treat a resulting future date as the previous year.
+
+Explicit `continue` on a known "no disasters" sentence is preferred over relying on later parsing steps to fail, matching how other parsers read.
 
 ### Common Japanese Text Patterns
 
 Some patterns found across multiple municipalities (analyze each case individually):
 - **Time format conversion**: `時` → `:`, `分` → `` (empty)
 - **Section markers**: `◆`, `●`, `・` often indicate different content sections
-- **Address formatting**: Some regions require prefecture prefixes
+- **Address formatting**: Prefecture prefix is usually added by the parser; `地内` is commonly stripped
 - **Empty state indicators**: Various phrases indicate no current dispatches
 
 ## Testing Individual Parsers
@@ -238,166 +245,37 @@ To test a specific municipality parser during development:
 
 **CRITICAL**: When working with Japanese text, always use UTF-8-safe string operations to avoid `is_char_boundary` panics.
 
-### Core Principle: Never Mix Byte Indices with Character Data
+`find()` and `rfind()` return **byte indices**, but Japanese characters are 2-4 bytes each. Slicing with those indices can split a character in half and panic at runtime.
 
-The fundamental issue is that `find()` returns **byte indices**, but Japanese characters can be 2-4 bytes each. Using byte indices for string slicing can split characters in the middle, causing panics.
-
-### Safe Text Processing Strategies
-
-#### 1. Text Extraction Between Markers
 ```rust
-// ❌ UNSAFE: Using byte indices from find()
+// ❌ UNSAFE: byte indices from find() used for slicing
 if let Some(start) = text.find(start_marker) {
-    let after_start = &text[start..];  // Can panic on multibyte chars
-    if let Some(end) = after_start.find(end_marker) {
-        let extracted = &after_start[..end];  // Can panic
-    }
+    let after_start = &text[start..];              // can panic
+    let extracted = &after_start[..after_start.find(end_marker)?];  // can panic
 }
 
-// ✅ SAFE: Using split() for extraction
+// ✅ SAFE: split() never lands mid-character
 let extracted = text
-    .split(start_marker).nth(1)  // Get text after start marker
-    .and_then(|s| s.split(end_marker).next())  // Get text before end marker
+    .split(start_marker).nth(1)
+    .and_then(|s| s.split(end_marker).next())
     .unwrap_or("");
-
-// ✅ SAFE: Chain multiple splits for complex extraction
-let result = text
-    .split(first_marker).nth(1).unwrap_or("")
-    .split(second_marker).next().unwrap_or("")
-    .split(third_marker).next().unwrap_or("");
 ```
 
-#### 2. Removing Unwanted Text Patterns
-```rust
-// ❌ UNSAFE: Using indices for removal
-if let (Some(start), Some(end)) = (text.find(open_char), text.find(close_char)) {
-    text.replace_range(start..=end, "");  // Can panic
-}
+Guidelines:
 
-// ✅ SAFE: Replacement-based removal
-let cleaned = text.replace(unwanted_pattern, "");
-
-// ✅ SAFE: Split-based removal for complex patterns
-let cleaned = if text.contains(open_char) && text.contains(close_char) {
-    let parts: Vec<&str> = text.split(open_char).collect();
-    if parts.len() >= 2 {
-        let before = parts[0];
-        let after_parts: Vec<&str> = parts[1].split(close_char).collect();
-        if after_parts.len() >= 2 {
-            format!("{}{}", before, after_parts[1])
-        } else {
-            before.to_string()
-        }
-    } else {
-        text.to_string()
-    }
-} else {
-    text.to_string()
-};
-```
-
-#### 3. Address and Location Processing
-```rust
-// ✅ SAFE: Progressive text refinement
-let processed_address = original_text
-    .split(city_marker).nth(1).unwrap_or("")  // Extract after city name
-    .split(suffix_marker).next().unwrap_or("")  // Extract before suffix
-    .replace(unwanted_chars, "")  // Remove unwanted characters
-    .trim()  // Clean whitespace
-    .to_string();
-
-// ✅ SAFE: Conditional formatting
-let final_address = if processed_address.contains(suffix) {
-    let base = processed_address.split(suffix).next().unwrap_or("");
-    format!("{}{}{}", prefix, base, suffix)
-} else {
-    format!("{}{}", prefix, processed_address)
-};
-```
-
-#### 4. Time and Date Processing
-```rust
-// ✅ SAFE: Character-based replacements
-let formatted_time = raw_time
-    .chars()
-    .rev()
-    .take(char_count)
-    .collect::<String>()
-    .chars()
-    .rev()
-    .collect::<String>()
-    .replace(hour_char, ":")
-    .replace(minute_char, "");
-```
-
-### Universal Safe Patterns
-
-#### Pattern 1: Sequential Text Extraction
-```rust
-fn extract_between_markers(text: &str, start: &str, end: &str) -> Option<&str> {
-    text.split(start).nth(1)?.split(end).next()
-}
-```
-
-#### Pattern 2: Multi-Stage Text Processing
-```rust
-fn process_text_safely(text: &str, markers: &[&str], replacements: &[(&str, &str)]) -> String {
-    let mut result = text;
-
-    // Stage 1: Extract using markers
-    for (i, marker) in markers.iter().enumerate() {
-        if let Some(extracted) = result.split(marker).nth(1) {
-            result = extracted;
-        }
-    }
-
-    // Stage 2: Apply replacements
-    let mut final_result = result.to_string();
-    for (from, to) in replacements {
-        final_result = final_result.replace(from, to);
-    }
-
-    final_result.trim().to_string()
-}
-```
-
-#### Pattern 3: Conditional Text Transformation
-```rust
-fn transform_conditionally(text: &str, conditions: &[&str], transformations: &[fn(&str) -> String]) -> String {
-    for (condition, transform) in conditions.iter().zip(transformations.iter()) {
-        if text.contains(condition) {
-            return transform(text);
-        }
-    }
-    text.to_string()
-}
-```
-
-### Development Guidelines
-
-1. **Always use `split()` for text segmentation** - never combine `find()` with slicing
-2. **Use `replace()` for simple character/pattern removal**
-3. **Chain operations safely** - each step should handle the absence of expected patterns
-4. **Test with real Japanese data** containing various character combinations
-5. **Prefer character-based operations** (`chars()`) over byte-based operations
-6. **Use `unwrap_or()` and `unwrap_or_else()`** to handle missing patterns gracefully
-
-### Error Prevention Checklist
+1. **Use `split()` / `split_once()` for segmentation** — never combine `find()` with slicing
+2. **Use `replace()` for simple removal**, not `replace_range()` with found indices
+3. **Handle missing patterns gracefully** with `unwrap_or()`, `?`, or `let ... else { continue; }` — a source site can change its wording at any time
+4. **Prefer character-based operations** (`chars()`) over byte-based ones
+5. **Test with real fire department data**
 
 Before committing parser code, verify:
-- [ ] No `&text[index..]` or `&text[..index]` or `&text[start..end]` patterns
+- [ ] No `&text[index..]`, `&text[..index]`, or `&text[start..end]` derived from `find()`
 - [ ] No `replace_range()` with `find()` indices
-- [ ] All text extraction uses `split()` or `replace()`
-- [ ] Error handling for missing patterns (using `unwrap_or()`)
-- [ ] Testing with actual fire department data
+- [ ] Every extraction step handles the pattern being absent
+- [ ] Verified against actual fire department output
 
-### Debugging UTF-8 Issues
-
-When encountering `is_char_boundary` panics:
-1. **Identify the operation**: Look for slice operations in the stack trace
-2. **Find the byte index source**: Usually from `find()`, `rfind()`, or similar methods
-3. **Replace with character-safe alternatives**: Use the patterns above
-4. **Verify with diverse test data**: Include various Japanese character combinations
+When an `is_char_boundary` panic does occur, find the slice operation in the stack trace, identify which `find()`/`rfind()` produced the index, and convert that step to `split()`.
 
 ## RSS Feed GUID Deduplication System
 
@@ -451,13 +329,6 @@ let guid = if let Some(existing_guid) = previous_guid_mapping.get(&disaster_esse
 };
 ```
 
-### Key Benefits
-
-1. **No new files created**: Uses existing `dist/all_feed.xml` for GUID tracking
-2. **Existing GUID generation preserved**: New disasters still use the original timestamp-based GUID format
-3. **RSS reader compatibility**: Leverages RSS readers' built-in GUID-based duplicate detection
-4. **Automatic cleanup**: When disasters are resolved and removed from source websites, their GUIDs naturally disappear from the system
-
 ### Behavior for Different Scenarios
 
 - **New disaster**: Gets a new timestamp-based GUID → RSS reader notifies user
@@ -465,11 +336,6 @@ let guid = if let Some(existing_guid) = previous_guid_mapping.get(&disaster_esse
 - **Content change (address/type)**: Gets a new GUID → RSS reader notifies user of the change
 - **Resolved disaster**: Removed from source → GUID mapping is not carried forward
 
-### Technical Notes
-
-- **Memory-only processing**: All GUID mapping is done in memory during RSS generation
-- **No persistence files**: Does not create additional files beyond the standard output
-- **Backward compatibility**: Maintains full compatibility with existing RSS readers and GUID formats
-- **Minimal code changes**: Adds functionality without modifying existing GUID generation mechanisms
+The mapping is built in memory from the previous `dist/all_feed.xml` on each run, so no extra files are created and resolved disasters drop out of the system automatically.
 
 This system effectively solves the duplicate notification problem while maintaining the integrity of the existing emergency dispatch information collection and distribution system.
