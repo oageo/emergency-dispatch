@@ -4,7 +4,7 @@ use std::io::Write;
 use scraper::{Html, Selector};
 use crate::to_half_width;
 
-use super::super::{get_source_with_config, HttpRequestConfig};
+use super::super::{get_source_with_config, HttpRequestConfig, LETS_ENCRYPT_GEN_Y_CERTS};
 
 const HOST: &str = "mcfcc119.jp";
 const GET_SOURCE: &str = "https://mcfcc119.jp/Disaster-Information.php";
@@ -12,7 +12,8 @@ const GET_SOURCE: &str = "https://mcfcc119.jp/Disaster-Information.php";
 pub fn return_242071() -> Result<(), Box<dyn std::error::Error>> {
     println!("242071, 鈴鹿市消防本部");
 
-    let config = HttpRequestConfig::new(HOST, GET_SOURCE);
+    // サーバーが中間証明書を送ってこない（実行環境によって検証に失敗する）ため、不足分を補う
+    let config = HttpRequestConfig::new(HOST, GET_SOURCE).with_extra_root_certificates(LETS_ENCRYPT_GEN_Y_CERTS);
     let body = get_source_with_config(&config)?;
     let document = Html::parse_document(&body);
 
