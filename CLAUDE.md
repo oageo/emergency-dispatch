@@ -186,6 +186,7 @@ The codebase uses a centralized `HttpRequestConfig` struct for handling differen
   - `User-Agent`: Defined by `ACCESS_UA` constant
 - **Character encoding**: Default is UTF-8. Use `.with_shift_jis(true)` or `.with_euc_jp(true)` only when the target site uses that encoding (check the HTML meta charset, or test for garbled text). Example: `parse_172014` 金沢市消防局 is EUC-JP.
 - **Custom headers**: Override defaults using methods like `.with_accept()`, `.with_accept_language()`, `.with_connection()`, `.with_content_type()`
+- **Host header**: Sent by default using the `host` argument of `HttpRequestConfig::new()`. Call `.without_host_header()` when the URL redirects to a different host (e.g. a published Google Sheets URL, `docs.google.com` → `*.googleusercontent.com`); otherwise the fixed Host is sent to the redirect target too, and the resulting 404 page comes back as `Ok`. Example: `parse_042153` 大崎市.
 - **In-process HTTP caching**: `SOURCE_CACHE` (a `lazy_static` `Mutex<HashMap>`) automatically caches responses by URL within a single process run. Multiple parsers sharing the same source URL (e.g., 松本広域消防局's 8 municipality parsers) will only trigger one actual HTTP request.
 
 ### Example Usage:

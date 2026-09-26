@@ -37,6 +37,7 @@ pub struct HttpRequestConfig {
     pub content_type: Option<String>,
     pub use_shift_jis: bool,
     pub use_euc_jp: bool,
+    pub send_host_header: bool,
 }
 
 impl HttpRequestConfig {
@@ -50,6 +51,7 @@ impl HttpRequestConfig {
             content_type: None,
             use_shift_jis: false,
             use_euc_jp: false,
+            send_host_header: true,
         }
     }
 
@@ -82,6 +84,16 @@ impl HttpRequestConfig {
         self.content_type = Some(content_type.to_string());
         self
     }
+
+    /// Hostヘッダーを明示的に送らない（reqwestが接続先に応じて自動で付与する）
+    ///
+    /// 別ホストへリダイレクトされるURL（例: Googleスプレッドシートの公開URL
+    /// docs.google.com → *.googleusercontent.com）では、固定のHostヘッダーが
+    /// リダイレクト先にも送られてしまい取得に失敗するため、これを使用する。
+    pub fn without_host_header(mut self) -> Self {
+        self.send_host_header = false;
+        self
+    }
 }
 
 pub fn get_source_with_config(config: &HttpRequestConfig) -> Result<String, Box<dyn std::error::Error>> {
@@ -96,7 +108,9 @@ pub fn get_source_with_config(config: &HttpRequestConfig) -> Result<String, Box<
 
     // HTTPリクエスト処理
     let mut headers = HeaderMap::new();
-    headers.insert(reqwest::header::HOST, config.host.parse()?);
+    if config.send_host_header {
+        headers.insert(reqwest::header::HOST, config.host.parse()?);
+    }
     headers.insert(
         reqwest::header::ACCEPT,
         config.accept.as_deref().unwrap_or(DEFAULT_ACCEPT).parse()?
@@ -177,6 +191,11 @@ use crate::parse::parse_012246::return_012246;
 use crate::parse::parse_012319::return_012319;
 use crate::parse::parse_012343::return_012343;
 use crate::parse::parse_022098::return_022098;
+use crate::parse::parse_042153::return_042153;
+use crate::parse::parse_044440::return_044440;
+use crate::parse::parse_044458::return_044458;
+use crate::parse::parse_045012::return_045012;
+use crate::parse::parse_045055::return_045055;
 use crate::parse::parse_062049::return_062049;
 use crate::parse::parse_062103::return_062103;
 use crate::parse::parse_064289::return_064289;
@@ -327,6 +346,11 @@ pub fn get_all() -> Result<(), Box<dyn std::error::Error>> {
     call_parser!(return_012319());
     call_parser!(return_012343());
     call_parser!(return_022098());
+    call_parser!(return_042153());
+    call_parser!(return_044440());
+    call_parser!(return_044458());
+    call_parser!(return_045012());
+    call_parser!(return_045055());
     call_parser!(return_062049());
     call_parser!(return_062103());
     call_parser!(return_064289());
