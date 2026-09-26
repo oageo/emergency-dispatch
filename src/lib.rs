@@ -19,6 +19,11 @@ lazy_static::lazy_static! {
     static ref SOURCE_CACHE: Mutex<HashMap<String, String>> = Mutex::new(HashMap::new());
 }
 
+// LETS_ENCRYPT_GEN_Y_CERTS: Let's Encrypt の Gen Y（RSA）階層の中間証明書（YR1〜YR3）と、
+// ISRG Root X1 が署名した Root YR（DER形式）。ビルド時に build.rs が取得して生成する。
+// 中間証明書を送ってこないサーバー向けに `.with_extra_root_certificates()` で使用する
+include!(concat!(env!("OUT_DIR"), "/lets_encrypt_gen_y.rs"));
+
 pub const ACCESS_UA: &str = "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:141.0) Gecko/20100101 Firefox/141.0 edbot v0.1.1(https://github.com/oageo/emergency-dispatch)";
 
 // HTTPリクエスト用のデフォルト値
@@ -38,6 +43,7 @@ pub struct HttpRequestConfig {
     pub use_shift_jis: bool,
     pub use_euc_jp: bool,
     pub send_host_header: bool,
+    pub extra_root_certificates: Option<&'static [&'static [u8]]>,
 }
 
 impl HttpRequestConfig {
@@ -52,6 +58,7 @@ impl HttpRequestConfig {
             use_shift_jis: false,
             use_euc_jp: false,
             send_host_header: true,
+            extra_root_certificates: None,
         }
     }
 
@@ -94,6 +101,16 @@ impl HttpRequestConfig {
         self.send_host_header = false;
         self
     }
+
+    /// DER形式の証明書（複数可）を追加の信頼先として使用する
+    ///
+    /// サーバーが中間証明書を送ってこない場合、実行環境によって証明書の検証に失敗する
+    /// （「error sending request」となる）ことがあるため、そのようなサイトでのみ
+    /// 不足している中間証明書（例: `LETS_ENCRYPT_GEN_Y_CERTS`）を渡す。
+    pub fn with_extra_root_certificates(mut self, certificates: &'static [&'static [u8]]) -> Self {
+        self.extra_root_certificates = Some(certificates);
+        self
+    }
 }
 
 pub fn get_source_with_config(config: &HttpRequestConfig) -> Result<String, Box<dyn std::error::Error>> {
@@ -129,9 +146,13 @@ pub fn get_source_with_config(config: &HttpRequestConfig) -> Result<String, Box<
     );
     headers.insert(reqwest::header::USER_AGENT, ACCESS_UA.parse()?);
 
-    let client = Client::builder()
-        .default_headers(headers.clone())
-        .build()?;
+    let mut client_builder = Client::builder().default_headers(headers.clone());
+    if let Some(certificates) = config.extra_root_certificates {
+        for der in certificates {
+            client_builder = client_builder.add_root_certificate(reqwest::Certificate::from_der(der)?);
+        }
+    }
+    let client = client_builder.build()?;
 
     println!("  [新規取得] {}", config.url);
     let res = match client.get(&config.url)
