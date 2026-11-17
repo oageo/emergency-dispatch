@@ -96,12 +96,23 @@ pub fn return_082031() -> Result<(), Box<dyn std::error::Error>> {
 
                     // 災害種別を抽出
                     if let Some(disaster_part) = after_time.split("で").nth(1) {
-                        let disaster_type = disaster_part
-                            .split("が発生し")
-                            .next()
-                            .unwrap_or("")
-                            .trim()
-                            .to_string();
+                        let disaster_type = if disaster_part.contains("が発生し") {
+                            // 例: "救急支援が発生し消防車が出動しました。"
+                            disaster_part
+                                .split("が発生し")
+                                .next()
+                                .unwrap_or("")
+                                .trim()
+                                .to_string()
+                        } else {
+                            // 例: "調査のため消防車が出動しました。"
+                            disaster_part
+                                .split("のため消防車が出動")
+                                .next()
+                                .unwrap_or(disaster_part)
+                                .trim()
+                                .to_string()
+                        };
 
                         disaster_data.push(json!({
                             "type": disaster_type,

@@ -65,6 +65,11 @@ pub fn return_412104() -> Result<(), Box<dyn std::error::Error>> {
                                 .to_string()
                         });
 
+                    // 「…はありませんでした」のような、出動の必要がなかった旨の連絡は除外する
+                    if disaster_type.contains("ありませんでした") {
+                        continue;
+                    }
+
                     disaster_data.push(json!({
                         "type": disaster_type,
                         "address": full_address,

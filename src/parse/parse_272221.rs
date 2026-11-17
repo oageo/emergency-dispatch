@@ -12,8 +12,8 @@ fn getsource() -> Result<String, Box<dyn std::error::Error>> {
     get_source_with_config(&config)
 }
 
-pub fn return_272230() -> Result<(), Box<dyn std::error::Error>> {
-    println!("272230, 羽曳野市（大阪南消防組合）");
+pub fn return_272221() -> Result<(), Box<dyn std::error::Error>> {
+    println!("272221, 羽曳野市（大阪南消防組合）");
     let body = getsource()?;
     let document = scraper::Html::parse_document(&body);
     let selector = scraper::Selector::parse("ul").unwrap();
@@ -68,7 +68,7 @@ pub fn return_272230() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     let output = json!({
-        "jisx0402": "272230",
+        "jisx0402": "272221",
         "source": [
             {
                 "url": GET_SOURCE,
@@ -79,9 +79,9 @@ pub fn return_272230() -> Result<(), Box<dyn std::error::Error>> {
     });
 
     // JSONファイルに書き出し
-    let mut file = File::create("dist/272230.json")?;
+    let mut file = File::create("dist/272221.json")?;
     file.write_all(output.to_string().as_bytes())?;
     eprintln!("{:?}", output);
-    println!("JSONファイルが出力されました: 272230.json （羽曳野市・大阪南消防組合）");
+    println!("JSONファイルが出力されました: 272221.json （羽曳野市・大阪南消防組合）");
     Ok(())
 }

@@ -7,7 +7,7 @@ use chrono::{Local, NaiveTime, DateTime, Utc, Datelike, Timelike};
 use regex::Regex;
 use reqwest::blocking::Client;
 use reqwest::header::HeaderMap;
-use encoding_rs::SHIFT_JIS;
+use encoding_rs::{SHIFT_JIS, EUC_JP};
 
 pub mod parse;
 
@@ -18,6 +18,11 @@ lazy_static::lazy_static! {
     /// プロセス終了時に自動的にクリアされます。
     static ref SOURCE_CACHE: Mutex<HashMap<String, String>> = Mutex::new(HashMap::new());
 }
+
+// LETS_ENCRYPT_GEN_Y_CERTS: Let's Encrypt の Gen Y（RSA）階層の中間証明書（YR1〜YR3）と、
+// ISRG Root X1 が署名した Root YR（DER形式）。ビルド時に build.rs が取得して生成する。
+// 中間証明書を送ってこないサーバー向けに `.with_extra_root_certificates()` で使用する
+include!(concat!(env!("OUT_DIR"), "/lets_encrypt_gen_y.rs"));
 
 pub const ACCESS_UA: &str = "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:141.0) Gecko/20100101 Firefox/141.0 edbot v0.1.1(https://github.com/oageo/emergency-dispatch)";
 
@@ -36,6 +41,9 @@ pub struct HttpRequestConfig {
     pub connection: Option<String>,
     pub content_type: Option<String>,
     pub use_shift_jis: bool,
+    pub use_euc_jp: bool,
+    pub send_host_header: bool,
+    pub extra_root_certificates: Option<&'static [&'static [u8]]>,
 }
 
 impl HttpRequestConfig {
@@ -48,11 +56,19 @@ impl HttpRequestConfig {
             connection: None,
             content_type: None,
             use_shift_jis: false,
+            use_euc_jp: false,
+            send_host_header: true,
+            extra_root_certificates: None,
         }
     }
 
     pub fn with_shift_jis(mut self, use_shift_jis: bool) -> Self {
         self.use_shift_jis = use_shift_jis;
+        self
+    }
+
+    pub fn with_euc_jp(mut self, use_euc_jp: bool) -> Self {
+        self.use_euc_jp = use_euc_jp;
         self
     }
 
@@ -75,6 +91,26 @@ impl HttpRequestConfig {
         self.content_type = Some(content_type.to_string());
         self
     }
+
+    /// Hostヘッダーを明示的に送らない（reqwestが接続先に応じて自動で付与する）
+    ///
+    /// 別ホストへリダイレクトされるURL（例: Googleスプレッドシートの公開URL
+    /// docs.google.com → *.googleusercontent.com）では、固定のHostヘッダーが
+    /// リダイレクト先にも送られてしまい取得に失敗するため、これを使用する。
+    pub fn without_host_header(mut self) -> Self {
+        self.send_host_header = false;
+        self
+    }
+
+    /// DER形式の証明書（複数可）を追加の信頼先として使用する
+    ///
+    /// サーバーが中間証明書を送ってこない場合、実行環境によって証明書の検証に失敗する
+    /// （「error sending request」となる）ことがあるため、そのようなサイトでのみ
+    /// 不足している中間証明書（例: `LETS_ENCRYPT_GEN_Y_CERTS`）を渡す。
+    pub fn with_extra_root_certificates(mut self, certificates: &'static [&'static [u8]]) -> Self {
+        self.extra_root_certificates = Some(certificates);
+        self
+    }
 }
 
 pub fn get_source_with_config(config: &HttpRequestConfig) -> Result<String, Box<dyn std::error::Error>> {
@@ -89,7 +125,9 @@ pub fn get_source_with_config(config: &HttpRequestConfig) -> Result<String, Box<
 
     // HTTPリクエスト処理
     let mut headers = HeaderMap::new();
-    headers.insert(reqwest::header::HOST, config.host.parse()?);
+    if config.send_host_header {
+        headers.insert(reqwest::header::HOST, config.host.parse()?);
+    }
     headers.insert(
         reqwest::header::ACCEPT,
         config.accept.as_deref().unwrap_or(DEFAULT_ACCEPT).parse()?
@@ -108,9 +146,13 @@ pub fn get_source_with_config(config: &HttpRequestConfig) -> Result<String, Box<
     );
     headers.insert(reqwest::header::USER_AGENT, ACCESS_UA.parse()?);
 
-    let client = Client::builder()
-        .default_headers(headers.clone())
-        .build()?;
+    let mut client_builder = Client::builder().default_headers(headers.clone());
+    if let Some(certificates) = config.extra_root_certificates {
+        for der in certificates {
+            client_builder = client_builder.add_root_certificate(reqwest::Certificate::from_der(der)?);
+        }
+    }
+    let client = client_builder.build()?;
 
     println!("  [新規取得] {}", config.url);
     let res = match client.get(&config.url)
@@ -126,6 +168,10 @@ pub fn get_source_with_config(config: &HttpRequestConfig) -> Result<String, Box<
     let body = if config.use_shift_jis {
         let body_bytes = res.bytes()?;
         let (body, _, _) = SHIFT_JIS.decode(&body_bytes);
+        body.into_owned()
+    } else if config.use_euc_jp {
+        let body_bytes = res.bytes()?;
+        let (body, _, _) = EUC_JP.decode(&body_bytes);
         body.into_owned()
     } else {
         res.text()?
@@ -160,19 +206,51 @@ pub fn to_half_width(s: &str) -> String {
 
 use crate::parse::parse_011002::return_011002;
 use crate::parse::parse_012025::return_012025;
+use crate::parse::parse_012076::return_012076;
 use crate::parse::parse_012131::return_012131;
 use crate::parse::parse_012173::return_012173;
+use crate::parse::parse_012238::return_012238;
 use crate::parse::parse_012246::return_012246;
 use crate::parse::parse_012319::return_012319;
 use crate::parse::parse_012343::return_012343;
+use crate::parse::parse_016314::return_016314;
+use crate::parse::parse_016322::return_016322;
+use crate::parse::parse_016331::return_016331;
+use crate::parse::parse_016349::return_016349;
+use crate::parse::parse_016357::return_016357;
+use crate::parse::parse_016365::return_016365;
+use crate::parse::parse_016373::return_016373;
+use crate::parse::parse_016381::return_016381;
+use crate::parse::parse_016390::return_016390;
+use crate::parse::parse_016411::return_016411;
+use crate::parse::parse_016420::return_016420;
+use crate::parse::parse_016438::return_016438;
+use crate::parse::parse_016446::return_016446;
+use crate::parse::parse_016454::return_016454;
+use crate::parse::parse_016462::return_016462;
+use crate::parse::parse_016471::return_016471;
+use crate::parse::parse_016489::return_016489;
+use crate::parse::parse_016497::return_016497;
 use crate::parse::parse_022098::return_022098;
+use crate::parse::parse_042153::return_042153;
+use crate::parse::parse_044440::return_044440;
+use crate::parse::parse_044458::return_044458;
+use crate::parse::parse_045012::return_045012;
+use crate::parse::parse_045055::return_045055;
 use crate::parse::parse_062049::return_062049;
 use crate::parse::parse_062103::return_062103;
 use crate::parse::parse_064289::return_064289;
 use crate::parse::parse_064611::return_064611;
+use crate::parse::parse_072010::return_072010;
+use crate::parse::parse_072036::return_072036;
+use crate::parse::parse_072117::return_072117;
+use crate::parse::parse_075213::return_075213;
+use crate::parse::parse_075221::return_075221;
 use crate::parse::parse_082031::return_082031;
 use crate::parse::parse_083020::return_083020;
 use crate::parse::parse_092011::return_092011;
+use crate::parse::parse_092029::return_092029;
+use crate::parse::parse_112038::return_112038;
 use crate::parse::parse_112089::return_112089;
 use crate::parse::parse_112097::return_112097;
 use crate::parse::parse_112127::return_112127;
@@ -218,7 +296,7 @@ use crate::parse::parse_122360::return_122360;
 use crate::parse::parse_122378::return_122378;
 use crate::parse::parse_122386::return_122386;
 use crate::parse::parse_122394::return_122394;
-use crate::parse::parse_123013::return_123013;
+use crate::parse::parse_123226::return_123226;
 use crate::parse::parse_123293::return_123293;
 use crate::parse::parse_123421::return_123421;
 use crate::parse::parse_123471::return_123471;
@@ -236,29 +314,69 @@ use crate::parse::parse_124419::return_124419;
 use crate::parse::parse_124435::return_124435;
 use crate::parse::parse_124630::return_124630;
 use crate::parse::parse_141003::return_141003;
+use crate::parse::parse_141305::return_141305;
 use crate::parse::parse_142018::return_142018;
+use crate::parse::parse_142077::return_142077;
 use crate::parse::parse_142107::return_142107;
+use crate::parse::parse_143219::return_143219;
 use crate::parse::parse_151009::return_151009;
 use crate::parse::parse_152021::return_152021;
+use crate::parse::parse_152137::return_152137;
+use crate::parse::parse_153427::return_153427;
+use crate::parse::parse_172014::return_172014;
 use crate::parse::parse_172031::return_172031;
+use crate::parse::parse_202029::return_202029;
+use crate::parse::parse_202151::return_202151;
+use crate::parse::parse_202207::return_202207;
+use crate::parse::parse_204463::return_204463;
+use crate::parse::parse_204480::return_204480;
+use crate::parse::parse_204501::return_204501;
+use crate::parse::parse_204510::return_204510;
+use crate::parse::parse_204528::return_204528;
 use crate::parse::parse_231002::return_231002;
 use crate::parse::parse_232068::return_232068;
+use crate::parse::parse_242012::return_242012;
+use crate::parse::parse_242071::return_242071;
+use crate::parse::parse_242101::return_242101;
+use crate::parse::parse_252018::return_252018;
 use crate::parse::parse_261009::return_261009;
+use crate::parse::parse_272043::return_272043;
 use crate::parse::parse_272141::return_272141;
 use crate::parse::parse_272167::return_272167;
 use crate::parse::parse_272213::return_272213;
-use crate::parse::parse_272230::return_272230;
+use crate::parse::parse_272221::return_272221;
 use crate::parse::parse_272264::return_272264;
+use crate::parse::parse_272272::return_272272;
 use crate::parse::parse_273813::return_273813;
 use crate::parse::parse_273821::return_273821;
 use crate::parse::parse_273830::return_273830;
 use crate::parse::parse_282189::return_282189;
 use crate::parse::parse_292010::return_292010;
 use crate::parse::parse_292095::return_292095;
+use crate::parse::parse_312029::return_312029;
+use crate::parse::parse_312037::return_312037;
+use crate::parse::parse_312045::return_312045;
+use crate::parse::parse_313645::return_313645;
+use crate::parse::parse_313700::return_313700;
+use crate::parse::parse_313718::return_313718;
+use crate::parse::parse_313726::return_313726;
+use crate::parse::parse_313840::return_313840;
+use crate::parse::parse_313866::return_313866;
+use crate::parse::parse_313891::return_313891;
+use crate::parse::parse_313904::return_313904;
+use crate::parse::parse_314013::return_314013;
+use crate::parse::parse_314021::return_314021;
+use crate::parse::parse_314030::return_314030;
 use crate::parse::parse_322016::return_322016;
+use crate::parse::parse_332135::return_332135;
 use crate::parse::parse_342033::return_342033;
 use crate::parse::parse_342122::return_342122;
 use crate::parse::parse_344311::return_344311;
+use crate::parse::parse_352047::return_352047;
+use crate::parse::parse_355020::return_355020;
+use crate::parse::parse_362018::return_362018;
+use crate::parse::parse_392014::return_392014;
+use crate::parse::parse_392057::return_392057;
 use crate::parse::parse_401005::return_401005;
 use crate::parse::parse_401307::return_401307;
 use crate::parse::parse_402231::return_402231;
@@ -284,19 +402,51 @@ pub fn get_all() -> Result<(), Box<dyn std::error::Error>> {
 
     call_parser!(return_011002());
     call_parser!(return_012025());
+    call_parser!(return_012076());
     call_parser!(return_012131());
     call_parser!(return_012173());
+    call_parser!(return_012238());
     call_parser!(return_012246());
     call_parser!(return_012319());
     call_parser!(return_012343());
+    call_parser!(return_016314());
+    call_parser!(return_016322());
+    call_parser!(return_016331());
+    call_parser!(return_016349());
+    call_parser!(return_016357());
+    call_parser!(return_016365());
+    call_parser!(return_016373());
+    call_parser!(return_016381());
+    call_parser!(return_016390());
+    call_parser!(return_016411());
+    call_parser!(return_016420());
+    call_parser!(return_016438());
+    call_parser!(return_016446());
+    call_parser!(return_016454());
+    call_parser!(return_016462());
+    call_parser!(return_016471());
+    call_parser!(return_016489());
+    call_parser!(return_016497());
     call_parser!(return_022098());
+    call_parser!(return_042153());
+    call_parser!(return_044440());
+    call_parser!(return_044458());
+    call_parser!(return_045012());
+    call_parser!(return_045055());
     call_parser!(return_062049());
     call_parser!(return_062103());
     call_parser!(return_064289());
     call_parser!(return_064611());
+    call_parser!(return_072010());
+    call_parser!(return_072036());
+    call_parser!(return_072117());
+    call_parser!(return_075213());
+    call_parser!(return_075221());
     call_parser!(return_082031());
     call_parser!(return_083020());
     call_parser!(return_092011());
+    call_parser!(return_092029());
+    call_parser!(return_112038());
     call_parser!(return_112089());
     call_parser!(return_112097());
     call_parser!(return_112127());
@@ -342,7 +492,7 @@ pub fn get_all() -> Result<(), Box<dyn std::error::Error>> {
     call_parser!(return_122378());
     call_parser!(return_122386());
     call_parser!(return_122394());
-    call_parser!(return_123013());
+    call_parser!(return_123226());
     call_parser!(return_123293());
     call_parser!(return_123421());
     call_parser!(return_123471());
@@ -360,29 +510,69 @@ pub fn get_all() -> Result<(), Box<dyn std::error::Error>> {
     call_parser!(return_124435());
     call_parser!(return_124630());
     call_parser!(return_141003());
+    call_parser!(return_141305());
     call_parser!(return_142018());
+    call_parser!(return_142077());
     call_parser!(return_142107());
+    call_parser!(return_143219());
     call_parser!(return_151009());
     call_parser!(return_152021());
+    call_parser!(return_152137());
+    call_parser!(return_153427());
+    call_parser!(return_172014());
     call_parser!(return_172031());
+    call_parser!(return_202029());
+    call_parser!(return_202151());
+    call_parser!(return_202207());
+    call_parser!(return_204463());
+    call_parser!(return_204480());
+    call_parser!(return_204501());
+    call_parser!(return_204510());
+    call_parser!(return_204528());
     call_parser!(return_231002());
     call_parser!(return_232068());
+    call_parser!(return_242012());
+    call_parser!(return_242071());
+    call_parser!(return_242101());
+    call_parser!(return_252018());
     call_parser!(return_261009());
+    call_parser!(return_272043());
     call_parser!(return_272141());
     call_parser!(return_272167());
     call_parser!(return_272213());
-    call_parser!(return_272230());
+    call_parser!(return_272221());
     call_parser!(return_272264());
+    call_parser!(return_272272());
     call_parser!(return_273813());
     call_parser!(return_273821());
     call_parser!(return_273830());
     call_parser!(return_282189());
     call_parser!(return_292010());
     call_parser!(return_292095());
+    call_parser!(return_312029());
+    call_parser!(return_312037());
+    call_parser!(return_312045());
+    call_parser!(return_313645());
+    call_parser!(return_313700());
+    call_parser!(return_313718());
+    call_parser!(return_313726());
+    call_parser!(return_313840());
+    call_parser!(return_313866());
+    call_parser!(return_313891());
+    call_parser!(return_313904());
+    call_parser!(return_314013());
+    call_parser!(return_314021());
+    call_parser!(return_314030());
     call_parser!(return_322016());
+    call_parser!(return_332135());
     call_parser!(return_342033());
     call_parser!(return_342122());
     call_parser!(return_344311());
+    call_parser!(return_352047());
+    call_parser!(return_355020());
+    call_parser!(return_362018());
+    call_parser!(return_392014());
+    call_parser!(return_392057());
     call_parser!(return_401005());
     call_parser!(return_401307());
     call_parser!(return_402231());
